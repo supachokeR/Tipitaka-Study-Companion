@@ -39,8 +39,8 @@ def ref_path(root_file):
     return REF / str(rel).replace("_root-pli-ms.json", "_reference.json")
 
 def class_of(name):
-    m = re.search(r"pli-tv-bu-vb-([a-z]+)", name)
-    return m.group(1)
+    m = re.search(r"pli-tv-b[iu]-vb-([a-z]+)", name)
+    return m.group(1) if m else ""
 
 def num_of(name):
     m = re.search(r"-([a-z]+)(\d+)", name)
@@ -48,7 +48,7 @@ def num_of(name):
 
 def extract_rule(data):
     keys = list(data)
-    idxs = [i for i, k in enumerate(keys) if "uddiseyyātha" in data[k]]
+    idxs = [i for i, k in enumerate(keys) if "uddiseyyātha" in data[k] or "uddisantu" in data[k]]
     if idxs:
         i = idxs[-1] + 1
         parts = []
@@ -207,6 +207,8 @@ def main():
     for u in as_units:
         people_ids["buddha"].append({"unitId": u["id"], "textTh": u["titleTh"], "cite": TSC_cite(u["passages"][-1])})
 
+    units.extend(load_bhikkhuni(max(u["order"] for u in units) + 1, people_ids, place_eps))
+
     if sum(1 for u in units if u["volume"] == 1) != 19:
         raise SystemExit("vol 1 count")
     if sum(1 for u in units if u["volume"] == 2) != 208:
@@ -288,6 +290,169 @@ def build_as(order):
         })
     return units, None
 
+def load_bhikkhuni(start_order, people_ids, place_eps):
+    from glosses_bi import GLOSS_BI
+    text_root = ROOT / "tools/raw/bilara/root/pli/ms/vinaya/pli-tv-bi-vb"
+    ref_root = ROOT / "tools/raw/bilara/reference/pli/ms/vinaya/pli-tv-bi-vb"
+    meta = {
+        "pj": ("bi-parajika", "ปาราชิก"),
+        "ss": ("bi-sanghadisesa", "สังฆาทิเสส"),
+        "np": ("bi-nissaggiya", "นิสสัคคิยปาจิตตีย์"),
+        "pc": ("bi-pacittiya", "ปาจิตตีย์"),
+        "pd": ("bi-patidesaniya", "ปาฏิเทสนียะ"),
+        "sk": ("bi-sekhiya", "เสขิยะ"),
+    }
+    units = []
+    order = start_order
+    files = sorted(p for p in text_root.rglob("*_root-pli-ms.json") if class_of(p.name) != "as")
+    for path in files:
+        if path.name.startswith("pli-tv-bi-vb-pj1-4"):
+            continue
+        data = load(path)
+        rel = path.relative_to(text_root)
+        ref_file = ref_root / str(rel).replace("_root-pli-ms.json", "_reference.json")
+        refs = load(ref_file)
+        parts = extract_rule(data)
+        if not parts:
+            raise SystemExit("no bhikkhuni rule: " + path.name)
+        sc = path.name.replace("_root-pli-ms.json", "")
+        gloss = GLOSS_BI[sc]
+        kind = class_of(sc)
+        section_id, penalty = meta[kind]
+        n = num_of(sc)
+        slug = sc.replace("pli-tv-bi-vb-", "")
+        place_phrase = ""
+        place_ids = []
+        blob = " ".join(data.values())
+        for needle, phrase, pid, *_rest in PLACES:
+            if needle in blob:
+                if not place_phrase:
+                    place_phrase = phrase
+                if pid not in place_ids:
+                    place_ids.append(pid)
+        summary = gloss["summary"]
+        if place_phrase:
+            summary += " เรื่องเกิดเริ่มในคราวที่พระผู้มีพระภาคประทับ" + place_phrase
+        passages = []
+        last_page = None
+        rows = []
+        open_id, open_text = opening_of(data)
+        if open_id:
+            rows.append((open_id, open_text))
+        rows.extend(parts)
+        seen = set()
+        for seg_id, raw in rows:
+            if seg_id in seen:
+                continue
+            seen.add(seg_id)
+            hit = first_sya(refs.get(seg_id, ""))
+            page_from = "break" if hit else ("carry" if last_page else None)
+            if hit:
+                last_page = hit
+            cite_page = hit or last_page
+            if cite_page and cite_page[0] != 3:
+                raise SystemExit(f"sya volume {cite_page[0]} != 3 for {seg_id}")
+            passages.append({
+                "id": seg_id,
+                "scSegment": seg_id,
+                "paliRoman": raw,
+                "sha256": sha(raw),
+                "cite": {
+                    "volume": cite_page[0] if cite_page else None,
+                    "page": cite_page[1] if cite_page else None,
+                    "pageFrom": page_from,
+                    "sigla": "วิ.ภิกฺขุนี.",
+                    "scSegment": seg_id,
+                    "item": None,
+                },
+                "paraphraseTh": "",
+                "terms": [],
+            })
+        unit = {
+            "id": "bi-" + slug,
+            "anchorId": "v03-" + slug,
+            "volume": 3,
+            "sectionId": section_id,
+            "kind": "sikkhapada",
+            "scId": sc,
+            "number": n,
+            "order": order,
+            "titleTh": gloss["title"],
+            "titleRoman": title_of(data),
+            "summary": summary,
+            "verify": [],
+            "people": ["buddha"],
+            "places": place_ids,
+            "dhammaIds": [],
+            "passages": passages,
+            "penalty": penalty,
+        }
+        order += 1
+        units.append(unit)
+        people_ids.setdefault("buddha", []).append({"unitId": unit["id"], "textTh": unit["titleTh"], "cite": TSC_cite(passages[-1])})
+        for pid in place_ids:
+            place_eps.setdefault(pid, []).append({"unitId": unit["id"], "textTh": unit["titleTh"]})
+    units.extend(load_bhikkhuni_as(order, people_ids))
+    return units
+
+def load_bhikkhuni_as(start_order, people_ids):
+    text_root = ROOT / "tools/raw/bilara/root/pli/ms/vinaya/pli-tv-bi-vb"
+    ref_root = ROOT / "tools/raw/bilara/reference/pli/ms/vinaya/pli-tv-bi-vb"
+    path = next(text_root.rglob("pli-tv-bi-vb-as1-7_root-pli-ms.json"))
+    data = load(path)
+    refs = load(ref_root / "pli-tv-bi-vb-as1-7_reference.json")
+    names = {
+        1: ("สัมมุขาวินัย", "ระงับอธิกรณ์ในที่พร้อมหน้า"),
+        2: ("สติวินัย", "ระงับด้วยการยกความที่พระอรหันต์มีสติ"),
+        3: ("อมูฬหวินัย", "ระงับเมื่อหายจากความเป็นบ้า"),
+        4: ("ปฏิญญาตกรณะ", "ระงับตามคำรับของตนเอง"),
+        5: ("เยภุยยสิกา", "ระงับด้วยเสียงข้างมาก"),
+        6: ("ตัสสปาปิยสิกา", "ระงับโดยปรับผู้พูดไม่ตรง"),
+        7: ("ติณวัตถารกะ", "ระงับโดยกลบอธิกรณ์ที่ยุ่งไว้"),
+    }
+    units = []
+    last = None
+    for n, (title, summary) in names.items():
+        segs = [(k, v) for k, v in data.items() if k.startswith(f"pli-tv-bi-vb-as{n}:") and v.strip() and "Mahāvibhaṅga" not in v and "Theravāda" not in v and "Bhikkhunivibhaṅga" not in v]
+        passages = []
+        for seg_id, raw in segs[:3]:
+            hit = first_sya(refs.get(seg_id, ""))
+            page_from = "break" if hit else ("carry" if last else None)
+            if hit:
+                last = hit
+            cite_page = hit or last
+            passages.append({
+                "id": seg_id,
+                "scSegment": seg_id,
+                "paliRoman": raw,
+                "sha256": sha(raw),
+                "cite": {"volume": cite_page[0] if cite_page else 3, "page": cite_page[1] if cite_page else None, "pageFrom": page_from, "sigla": "วิ.ภิกฺขุนี.", "scSegment": seg_id, "item": None},
+                "paraphraseTh": "",
+                "terms": [],
+            })
+        unit = {
+            "id": "bi-as" + str(n),
+            "anchorId": f"v03-as{n}",
+            "volume": 3,
+            "sectionId": "bi-samatha",
+            "kind": "sikkhapada",
+            "scId": "pli-tv-bi-vb-as" + str(n),
+            "number": n,
+            "order": start_order + n - 1,
+            "titleTh": title,
+            "titleRoman": title,
+            "summary": summary,
+            "verify": [],
+            "people": ["buddha"],
+            "places": [],
+            "dhammaIds": [],
+            "passages": passages,
+            "penalty": "อธิกรณสมถะ",
+        }
+        units.append(unit)
+        people_ids.setdefault("buddha", []).append({"unitId": unit["id"], "textTh": title, "cite": TSC_cite(passages[-1])})
+    return units
+
 def catalog(units, people_eps, place_eps):
     # The rest of the catalog is static study framing, not Pali.
     from frame import frame
@@ -302,6 +467,13 @@ def catalog(units, people_eps, place_eps):
         {"id": "patidesaniya", "volume": 2, "titleTh": "ปาฏิเทสนียกัณฑ์", "titleRoman": "Pāṭidesanīyakaṇḍa", "order": 6},
         {"id": "sekhiya", "volume": 2, "titleTh": "เสขิยกัณฑ์", "titleRoman": "Sekhiyakaṇḍa", "order": 7},
         {"id": "samatha", "volume": 2, "titleTh": "อธิกรณสมถะ", "titleRoman": "Adhikaraṇasamatha", "order": 8},
+        {"id": "bi-parajika", "volume": 3, "titleTh": "ปาราชิกของภิกษุณี", "titleRoman": "Pārājika", "order": 9},
+        {"id": "bi-sanghadisesa", "volume": 3, "titleTh": "สังฆาทิเสสของภิกษุณี", "titleRoman": "Saṅghādisesa", "order": 10},
+        {"id": "bi-nissaggiya", "volume": 3, "titleTh": "นิสสัคคีย์ของภิกษุณี", "titleRoman": "Nissaggiya", "order": 11},
+        {"id": "bi-pacittiya", "volume": 3, "titleTh": "ปาจิตตีย์ของภิกษุณี", "titleRoman": "Pācittiya", "order": 12},
+        {"id": "bi-patidesaniya", "volume": 3, "titleTh": "ปาฏิเทสนียะของภิกษุณี", "titleRoman": "Pāṭidesanīya", "order": 13},
+        {"id": "bi-sekhiya", "volume": 3, "titleTh": "เสขิยะของภิกษุณี", "titleRoman": "Sekhiya", "order": 14},
+        {"id": "bi-samatha", "volume": 3, "titleTh": "อธิกรณสมถะ", "titleRoman": "Adhikaraṇasamatha", "order": 15},
     ]
     for person in base["people"]:
         person["episodes"] = people_eps.get(person["id"], [])
@@ -339,10 +511,15 @@ def quizzes(units):
     for u in vol2_units[:40]:
         wrong = [p for p in penalties if p != u["penalty"]][:3]
         add(u, "สิกขาบท「" + u["titleTh"] + "」อยู่ในชั้นใด", u["penalty"], [u["penalty"]] + wrong, "ดูตัวบทของ " + u["scId"])
+    vol3_units = [u for u in units if u["volume"] == 3]
+    for u in vol3_units[:40]:
+        wrong = [p for p in penalties if p != u["penalty"]][:3]
+        add(u, "สิกขาบท「" + u["titleTh"] + "」อยู่ในชั้นใดของภิกขุนีวิภังค์", u["penalty"], [u["penalty"]] + wrong, "ดูตัวบทของ " + u["scId"])
     vol1 = [q for q in out if q["scope"] == "vol-1"]
     vol2 = [q for q in out if q["scope"] == "vol-2"]
-    if len(vol1) < 30 or len(vol2) < 40:
-        raise SystemExit(f"quiz short {len(vol1)} {len(vol2)}")
+    vol3 = [q for q in out if q["scope"] == "vol-3"]
+    if len(vol1) < 30 or len(vol2) < 40 or len(vol3) < 30:
+        raise SystemExit(f"quiz short {len(vol1)} {len(vol2)} {len(vol3)}")
     return out
 
 if __name__ == "__main__":

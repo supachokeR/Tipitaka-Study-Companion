@@ -327,8 +327,9 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       var scope = route.params[0] || "";
       var wrap = TSC.el("div", {}, [crumbs([["ภาพรวม", "#/"], ["แบบทดสอบ"]]), TSC.h(1, "แบบทดสอบ")]);
       if (!scope) {
-        ["vol-1", "vol-2", "vinaya"].forEach(function (id) {
-          wrap.append(TSC.el("a", { href: "#/quiz/" + id, class: "glass-card mt-3 block p-4" }, [id === "vinaya" ? "วินัยปิฎก" : "เล่ม " + id.slice(4)]));
+        ["vol-1", "vol-2", "vol-3", "vinaya"].forEach(function (id) {
+          var label = id === "vinaya" ? "วินัยปิฎก" : "เล่ม " + id.slice(4);
+          wrap.append(TSC.el("a", { href: "#/quiz/" + id, class: "glass-card mt-3 block p-4" }, [label]));
         });
         var hist = TSC.el("ul", { class: "mt-3 space-y-1" });
         TSC.quiz.history().forEach(function (h) {

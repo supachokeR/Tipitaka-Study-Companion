@@ -10,12 +10,12 @@ const TSC = loadSrc([
   "src/data/generated/data.js"
 ]);
 const data = TSC.DATA;
-const root = path.resolve("tools/raw/bilara/root/pli/ms/vinaya/pli-tv-bu-vb");
+const root = path.resolve("tools/raw/bilara/root/pli/ms/vinaya");
 
 function fileFor(scId) {
-  const name = scId.startsWith("pli-tv-bu-vb-as")
-    ? "pli-tv-bu-vb-as1-7_root-pli-ms.json"
-    : scId + "_root-pli-ms.json";
+  let name = scId + "_root-pli-ms.json";
+  if (scId.startsWith("pli-tv-bu-vb-as")) name = "pli-tv-bu-vb-as1-7_root-pli-ms.json";
+  if (scId.startsWith("pli-tv-bi-vb-as")) name = "pli-tv-bi-vb-as1-7_root-pli-ms.json";
   const hits = [];
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -35,6 +35,10 @@ test("โครงเล่ม ๑–๒ และ crosswalk", () => {
   assert.ok(data.glossary.length >= 40);
   assert.ok(data.quiz.filter((q) => q.scope === "vol-1").length >= 30);
   assert.ok(data.quiz.filter((q) => q.scope === "vol-2").length >= 40);
+  assert.ok(data.quiz.filter((q) => q.scope === "vol-3").length >= 30);
+  const vol3 = data.units.filter((u) => u.volume === 3);
+  assert.ok(vol3.length >= 100);
+  assert.ok(vol3.every((u) => String(u.scId).startsWith("pli-tv-bi-vb-")));
 });
 
 test("checksum บาลีตรงไฟล์ต้นฉบับ และเลข sya ตรงเล่ม", () => {
