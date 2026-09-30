@@ -146,7 +146,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       location.hash = "#/search?q=" + encodeURIComponent(value);
     });
     document.getElementById("read-page").addEventListener("click", function () {
-      TSC.tts.readSelector(document.getElementById("reader"));
+      TSC.tts.readPage();
     });
     document.querySelectorAll("[data-pane]").forEach(function (btn) {
       btn.addEventListener("click", function () {

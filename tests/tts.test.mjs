@@ -43,6 +43,23 @@ test("จำความเร็วและโหลดกลับ", async ()
   assert.ok(button.className.includes("bg-[#F97316]"));
 });
 
+test("อ่านทั้งหน้าแล้วไปบทถัดไปต่อ", async () => {
+  const speech = makeSpeech();
+  const { window } = loadApp("#/vol/1/parajika/pj1", { speech });
+  await tick();
+  window.document.getElementById("read-page").click();
+  await tick();
+  let guard = 0;
+  while (window.location.hash.indexOf("pj1") !== -1 && guard < 400) {
+    const utterance = speech.synth.spoken.at(-1);
+    if (utterance && utterance.onend) utterance.onend();
+    await tick();
+    guard += 1;
+  }
+  assert.ok(window.location.hash.includes("pj2"));
+  assert.ok(speech.synth.spoken.length > 1);
+});
+
 test("เปลี่ยนหน้าแล้ว cancel", async () => {
   const speech = makeSpeech();
   const { window } = loadApp("#/vol/1", { speech });

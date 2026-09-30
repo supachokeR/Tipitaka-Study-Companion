@@ -41,7 +41,8 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
   };
 
   TSC.render = function () {
-    if (TSC.tts) TSC.tts.stop();
+    var carry = TSC.tts && TSC.tts.takeAdvance();
+    if (TSC.tts && !carry) TSC.tts.stop();
     var route = TSC.parseHash(location.hash || "#/");
     TSC.store.set("lastLocation", location.hash || "#/");
     var reader = document.getElementById("reader");
@@ -51,6 +52,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     if (TSC.notesPanel) TSC.notesPanel.refresh(route);
     var q = document.getElementById("q");
     if (q && route.name === "search") q.value = route.query.get("q") || "";
+    if (carry && TSC.tts) TSC.tts.readSelector(reader, { keep: true });
   };
 
   TSC.router = {
