@@ -92,7 +92,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     return out;
   }
 
-  var ALLOWED_MARK = /^[\d.,;:?!“”‘’"'()[\]…—–]+$/u;
+  var ALLOWED_MARK = /^[\d.,;:?!“”‘’"'()[\]…—–\-/+*=|]+$/u;
 
   function transliterateToken(token) {
     var joined = token.replace(/(\p{L})-(\p{L})/gu, "$1$2");

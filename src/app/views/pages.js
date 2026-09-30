@@ -141,7 +141,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
         var sec = (D().sections || []).find(function (s) { return s.id === sid; });
         var list = TSC.el("ol", { class: "mt-3 space-y-2" });
         grouped[sid].forEach(function (u, index) {
-          var label = u.kind === "chapter" ? (index + 1) + ". " + u.titleTh : u.number + ". " + u.titleTh;
+          var label = u.kind === "sikkhapada" ? u.number + ". " + u.titleTh : (index + 1) + ". " + u.titleTh;
           list.append(TSC.el("li", {}, [
             link("#/vol/" + vol.n + "/" + u.sectionId + "/" + u.id, label),
             TSC.progress.has(u.id) ? " · อ่านแล้ว" : ""
@@ -428,7 +428,10 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       var scope = route.params[0] || "";
       var wrap = TSC.el("div", {}, [crumbs([["ภาพรวม", "#/"], ["แบบทดสอบ"]]), TSC.h(1, "แบบทดสอบ")]);
       if (!scope) {
-        ["vol-1", "vol-2", "vol-3", "vol-4", "vol-5", "vol-6", "vol-7", "vol-8", "vinaya"].forEach(function (id) {
+        var ids = [];
+        for (var n = 1; n <= 45; n++) ids.push("vol-" + n);
+        ids.push("vinaya");
+        ids.forEach(function (id) {
           var label = id === "vinaya" ? "วินัยปิฎก" : "เล่ม " + id.slice(4);
           wrap.append(TSC.el("a", { href: "#/quiz/" + id, class: "glass-card mt-3 block p-4" }, [label]));
         });

@@ -10,22 +10,22 @@ const TSC = loadSrc([
   "src/data/generated/data.js"
 ]);
 const data = TSC.DATA;
-const root = path.resolve("tools/raw/bilara/root/pli/ms/vinaya");
+const root = path.resolve("tools/raw/bilara/root/pli/ms");
+const fileIndex = new Map();
+function indexFiles(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) indexFiles(full);
+    else if (entry.name.endsWith("_root-pli-ms.json")) fileIndex.set(entry.name, full);
+  }
+}
+indexFiles(root);
 
 function fileFor(scId) {
   let name = scId + "_root-pli-ms.json";
   if (scId.startsWith("pli-tv-bu-vb-as")) name = "pli-tv-bu-vb-as1-7_root-pli-ms.json";
   if (scId.startsWith("pli-tv-bi-vb-as")) name = "pli-tv-bi-vb-as1-7_root-pli-ms.json";
-  const hits = [];
-  const walk = (dir) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.name === name) hits.push(full);
-    }
-  };
-  walk(root);
-  return hits[0];
+  return fileIndex.get(name);
 }
 
 test("โครงเล่ม ๑–๒ และ crosswalk", () => {

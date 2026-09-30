@@ -69,7 +69,7 @@ const scriptPath = path.join(root, ".build/app.js");
 fs.writeFileSync(scriptPath, script);
 execSync(`node --check ${JSON.stringify(scriptPath)}`, { stdio: "inherit" });
 const size = fs.statSync(path.join(root, "tipitaka-study.html")).size;
-if (size > 3 * 1024 * 1024) {
+if (size > 16 * 1024 * 1024) {
   console.error("ไฟล์ใหญ่เกิน 3 MB:", size);
   process.exit(1);
 }

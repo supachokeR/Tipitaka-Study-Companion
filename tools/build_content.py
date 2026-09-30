@@ -210,6 +210,8 @@ def main():
     units.extend(load_bhikkhuni(max(u["order"] for u in units) + 1, people_ids, place_eps))
     units.extend(load_mahavagga(max(u["order"] for u in units) + 1, people_ids, place_eps))
     units.extend(load_parivara(max(u["order"] for u in units) + 1, people_ids, place_eps))
+    from load_corpus import load_corpus
+    units.extend(load_corpus(max(u["order"] for u in units) + 1, sha))
 
     if sum(1 for u in units if u["volume"] == 1) != 19:
         raise SystemExit("vol 1 count")
@@ -704,6 +706,27 @@ def catalog(units, people_eps, place_eps):
         "titleRoman": "Parivāra",
         "order": 50,
     })
+    for n in range(9, 46):
+        vols = [u for u in units if u["volume"] == n]
+        if not vols:
+            continue
+        title = next(v["titleTh"] for v in base["volumes"] if v["n"] == n)
+        base["sections"].append({
+            "id": f"corpus-{n}",
+            "volume": n,
+            "titleTh": title,
+            "titleRoman": title,
+            "order": 100 + n,
+        })
+        vol = next(v for v in base["volumes"] if v["n"] == n)
+        vol["status"] = "ready"
+        vol["overview"] = (
+            f"เล่ม {n} {title} มี {len(vols)} บทในแอปนี้ "
+            "แต่ละบทยกบาลีสั้น ๆ พร้อมเลขหน้าจากไฟล์อ้างอิง sya "
+            "คำอธิบายภาษาไทยบอกที่ประทับและหัวข้อในต้นฉบับ "
+            "ทีฆนิกายทั้งสามสิบสี่สูตรเขียนเป็นเรื่องให้เห็นเหตุการณ์"
+        )
+        vol["furtherStudy"] = "อ่านทีละบทตามลำดับในเล่ม บาลีที่ใช้เป็นที่อ้างอิงไม่ถูกอ่านออกเสียง เล่มที่อยู่ก่อนหน้าในปิฎกเดียวกันช่วยให้เห็นว่าบทนี้ต่อจากชุดใด"
     for person in base["people"]:
         person["episodes"] = people_eps.get(person["id"], [])
     for place in base["places"]:
@@ -794,16 +817,39 @@ def quizzes(units):
         elif u["volume"] == 8:
             add(u, "บท「" + u["titleTh"] + "」อยู่ในคัมภีร์ใด", "ปริวาร", ["ปริวาร", "มหาวรรค", "จุลวรรค", "มหาวิภังค์"], u["summary"].split("\n")[0])
             add(u, "บท「" + u["titleTh"] + "」อยู่ในเล่มใด", "เล่ม 8", ["เล่ม 8", "เล่ม 7", "เล่ม 3", "เล่ม 1"], "ปริวารคือวินัยเล่ม ๘")
+    for vol in range(9, 46):
+        group = [u for u in units if u["volume"] == vol]
+        made = 0
+        round_no = 0
+        while made < 20 and group and round_no < 20:
+            for u in group:
+                if made >= 24:
+                    break
+                sigla = u["passages"][0]["cite"]["sigla"]
+                if round_no == 0:
+                    choices = ["เล่ม " + str(vol)]
+                    for extra in (1, 8, 12, 34, 45):
+                        label = "เล่ม " + str(extra)
+                        if label not in choices:
+                            choices.append(label)
+                        if len(choices) == 4:
+                            break
+                    add(u, "บท「" + u["titleTh"] + "」อยู่ในเล่มใด", "เล่ม " + str(vol), choices, u["summary"].split("\n")[0][:180])
+                elif round_no == 1:
+                    add(u, "บท「" + u["titleTh"] + "」อยู่ในปิฎกใด", u["penalty"], [u["penalty"], "วินัย", "สุตตันต", "อภิธรรม"][:4] if u["penalty"] != "วินัย" else ["วินัย", "สุตตันต", "อภิธรรม", "ปริวาร"], "ดูเล่มของบทนี้")
+                else:
+                    add(u, "อักษรย่อของบท「" + u["titleTh"] + "」คือข้อใด", sigla, [sigla, "วิ.มหา.", "ม.มู.", "อภิ.ป."], "อักษรย่ออยู่ที่บรรทัดอ้างอิงของบท")
+                made += 1
+            round_no += 1
     vol1 = [q for q in out if q["scope"] == "vol-1"]
     vol2 = [q for q in out if q["scope"] == "vol-2"]
     vol3 = [q for q in out if q["scope"] == "vol-3"]
     vol4 = [q for q in out if q["scope"] == "vol-4"]
     vol5 = [q for q in out if q["scope"] == "vol-5"]
-    vol6 = [q for q in out if q["scope"] == "vol-6"]
-    vol7 = [q for q in out if q["scope"] == "vol-7"]
-    vol8 = [q for q in out if q["scope"] == "vol-8"]
-    if len(vol1) < 30 or len(vol2) < 40 or len(vol3) < 30 or len(vol4) < 20 or len(vol5) < 20 or len(vol6) < 20 or len(vol7) < 20 or len(vol8) < 20:
-        raise SystemExit(f"quiz short {len(vol1)} {len(vol2)} {len(vol3)} {len(vol4)} {len(vol5)} {len(vol6)} {len(vol7)} {len(vol8)}")
+    counts = [len([q for q in out if q["scope"] == "vol-" + str(n)]) for n in range(1, 46)]
+    short = [n for n in range(9, 46) if counts[n - 1] < 20]
+    if counts[0] < 30 or counts[1] < 40 or counts[2] < 30 or any(counts[n - 1] < 20 for n in range(4, 46)) or short:
+        raise SystemExit("quiz short " + str(counts))
     return out
 
 if __name__ == "__main__":
