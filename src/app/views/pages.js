@@ -51,6 +51,34 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     });
   }
 
+  function planStep(step) {
+    var row = TSC.el("div", {});
+    if (step.dhammaId) {
+      var dhamma = (D().dhammas || []).find(function (item) { return item.id === step.dhammaId; });
+      row.append(link("#/dhamma/" + step.dhammaId, dhamma ? dhamma.titleTh : step.dhammaId));
+    } else if (step.unitId) {
+      var unit = (D().units || []).find(function (item) { return item.id === step.unitId; });
+      var done = TSC.progress.has(step.unitId);
+      row.append(TSC.el("button", {
+        type: "button",
+        class: "tap mr-2 rounded-xl border border-[#F97316] px-3 text-sm",
+        "aria-label": done ? "เอาเครื่องหมายอ่านแล้วออก" : "อ่านแล้ว",
+        onclick: function () { TSC.progress.toggle(step.unitId); TSC.render(); }
+      }, [done ? "อ่านแล้ว" : "ยังไม่อ่าน"]));
+      if (unit) row.append(link("#/vol/" + unit.volume + "/" + unit.sectionId + "/" + unit.id, "เล่ม " + unit.volume + " · " + unit.titleTh));
+    } else if (step.volume) {
+      var vol = volume(step.volume);
+      var ids = units(step.volume).map(function (item) { return item.id; });
+      var label = "เล่ม " + step.volume + " " + (vol ? vol.titleTh : "");
+      row.append(link("#/vol/" + step.volume, label));
+      row.append(TSC.el("span", { class: "ml-2 text-sm text-[#C2410C]" }, [
+        ids.length ? "อ่านแล้ว " + TSC.progress.percent(ids) + "%" : "ยังไม่มีตัวบท"
+      ]));
+    }
+    if (step.note) row.append(TSC.p("mt-1 text-sm leading-7", step.note));
+    return row;
+  }
+
   TSC.views = {
     missing: function () {
       return TSC.el("div", { class: "glass-card p-6" }, [TSC.h(1, "ไม่พบหน้านี้"), link("#/", "กลับภาพรวม")]);
@@ -112,9 +140,10 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       Object.keys(grouped).forEach(function (sid) {
         var sec = (D().sections || []).find(function (s) { return s.id === sid; });
         var list = TSC.el("ol", { class: "mt-3 space-y-2" });
-        grouped[sid].forEach(function (u) {
+        grouped[sid].forEach(function (u, index) {
+          var label = u.kind === "chapter" ? (index + 1) + ". " + u.titleTh : u.number + ". " + u.titleTh;
           list.append(TSC.el("li", {}, [
-            link("#/vol/" + vol.n + "/" + u.sectionId + "/" + u.id, u.number + ". " + u.titleTh),
+            link("#/vol/" + vol.n + "/" + u.sectionId + "/" + u.id, label),
             TSC.progress.has(u.id) ? " · อ่านแล้ว" : ""
           ]));
         });
@@ -180,14 +209,26 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       return wrap;
     },
     people: function () {
-      var wrap = TSC.el("div", {}, [crumbs([["ภาพรวม", "#/"], ["บุคคล"]]), TSC.h(1, "บุคคล")]);
-      var roles = ["bhikkhu", "bhikkhuni", "upasaka", "upasika", "raja", "titthiya"];
-      var labels = { bhikkhu: "ภิกษุ", bhikkhuni: "ภิกษุณี", upasaka: "อุบาสก", upasika: "อุบาสิกา", raja: "กษัตริย์", titthiya: "เดียรถีย์" };
+      var wrap = TSC.el("div", {}, [
+        crumbs([["ภาพรวม", "#/"], ["บุคคล"]]),
+        TSC.h(1, "บุคคล"),
+        TSC.p("mt-3 leading-8", "คนในหน้านี้คือผู้ที่ปรากฏในวินัยเล่ม ๑ ถึง ๘ ที่โหลดแล้ว แต่ละคนมีเรื่องจากตอนนั้น และลิงก์ไปบทที่เขาอยู่")
+      ]);
+      var roles = ["bhikkhu", "bhikkhuni", "upasaka", "upasika", "raja", "titthiya", "other"];
+      var labels = { bhikkhu: "ภิกษุ", bhikkhuni: "ภิกษุณี", upasaka: "อุบาสก", upasika: "อุบาสิกา", raja: "กษัตริย์", titthiya: "เดียรถีย์", other: "อื่น ๆ" };
       roles.forEach(function (role) {
         var people = (D().people || []).filter(function (p) { return p.role === role; });
         if (!people.length) return;
-        var list = TSC.el("ul", { class: "mt-2 space-y-1" });
-        people.forEach(function (p) { list.append(TSC.el("li", {}, [link("#/people/" + p.id, p.names.th)])); });
+        var list = TSC.el("div", { class: "mt-3 space-y-2" });
+        people.forEach(function (p) {
+          var lead = String(p.blurb || "").split("\n")[0];
+          var count = (p.episodes || []).length;
+          list.append(TSC.el("a", { href: "#/people/" + p.id, class: "block rounded-xl bg-white/50 p-3" }, [
+            TSC.el("div", { class: "font-semibold" }, [p.names.th]),
+            TSC.p("mt-1 text-sm leading-7", lead),
+            TSC.el("div", { class: "mt-1 text-xs text-[#C2410C]" }, [count ? "ปรากฏ " + count + " ตอน" : "ยังไม่มีตอนในชุดนี้"])
+          ]));
+        });
         wrap.append(section(labels[role], [list]));
       });
       return wrap;
@@ -195,34 +236,82 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     person: function (route) {
       var person = (D().people || []).find(function (p) { return p.id === route.params[0]; });
       if (!person) return TSC.views.missing();
-      var eps = TSC.el("div", {});
+      var labels = { bhikkhu: "ภิกษุ", bhikkhuni: "ภิกษุณี", upasaka: "อุบาสก", upasika: "อุบาสิกา", raja: "กษัตริย์", titthiya: "เดียรถีย์", other: "อื่น ๆ" };
+      var byVol = {};
       (person.episodes || []).forEach(function (ep) {
-        eps.append(TSC.p("mt-3", ep.textTh + " " + (ep.cite || "")));
+        var unit = (D().units || []).find(function (u) { return u.id === ep.unitId; });
+        var vol = unit ? unit.volume : 0;
+        byVol[vol] = byVol[vol] || [];
+        byVol[vol].push({ ep: ep, unit: unit });
       });
-      return TSC.el("div", {}, [
+      var wrap = TSC.el("div", {}, [
         crumbs([["บุคคล", "#/people"], [person.names.th]]),
         TSC.h(1, person.names.th),
-        TSC.p("mt-2", person.names.roman || ""),
-        section("เรื่องราว", [TSC.p("mt-3", person.blurb || "")].concat(Array.from(eps.childNodes)))
+        TSC.p("mt-2", (labels[person.role] || "") + (person.names.roman ? " · " + person.names.roman : ""))
       ]);
+      wrap.append(section("เรื่อง", paras(person.blurb)));
+      Object.keys(byVol).sort(function (a, b) { return Number(a) - Number(b); }).forEach(function (vol) {
+        var list = TSC.el("ul", { class: "mt-3 space-y-2" });
+        byVol[vol].forEach(function (row) {
+          var title = row.unit ? row.unit.titleTh : row.ep.textTh;
+          var href = row.unit ? "#/vol/" + row.unit.volume + "/" + row.unit.sectionId + "/" + row.unit.id : "#/people/" + person.id;
+          list.append(TSC.el("li", {}, [
+            link(href, "เล่ม " + vol + " · " + title),
+            TSC.el("div", { class: "text-sm text-stone-600" }, [row.ep.cite || ""])
+          ]));
+        });
+        wrap.append(section(vol === "0" ? "ตอนที่ปรากฏ" : "เล่ม " + vol, [list]));
+      });
+      if (!(person.episodes || []).length) wrap.append(section("ตอนที่ปรากฏ", [TSC.p("mt-3", "ยังไม่มีตอนในชุดข้อมูลนี้")]));
+      return wrap;
     },
     dhamma: function () {
-      var wrap = TSC.el("div", {}, [crumbs([["ภาพรวม", "#/"], ["หมวดธรรม"]]), TSC.h(1, "หมวดธรรม")]);
+      var wrap = TSC.el("div", {}, [
+        crumbs([["ภาพรวม", "#/"], ["หมวดธรรม"]]),
+        TSC.h(1, "หมวดธรรม"),
+        TSC.p("mt-3 leading-8", "เก้าหมวดนี้คือโครงที่พระสูตรใช้จัดประสบการณ์ แต่ละหมวดเขียนรายการครบแล้ว ลิงก์ในหมวดชี้เฉพาะตอนที่โหลดไว้ในแอป")
+      ]);
       (D().dhammas || []).forEach(function (d) {
-        wrap.append(TSC.el("a", { href: "#/dhamma/" + d.id, class: "glass-card mt-3 block p-4" }, [d.titleTh]));
+        var lead = String(d.summaryTh || "").split("\n")[0];
+        wrap.append(TSC.el("a", { href: "#/dhamma/" + d.id, class: "glass-card mt-3 block p-4" }, [
+          TSC.el("div", { class: "font-semibold" }, [d.titleTh]),
+          TSC.p("mt-1 text-sm leading-7", lead)
+        ]));
       });
       return wrap;
     },
     dhammaOne: function (route) {
       var d = (D().dhammas || []).find(function (x) { return x.id === route.params[0]; });
       if (!d) return TSC.views.missing();
+      var wrap = TSC.el("div", {}, [
+        crumbs([["หมวดธรรม", "#/dhamma"], [d.titleTh]]),
+        TSC.h(1, d.titleTh)
+      ]);
+      wrap.append(section("เรื่อง", paras(d.summaryTh)));
+      (d.groups || []).forEach(function (g) {
+        var nodes = paras(g.body);
+        if (g.items && g.items.length) {
+          var list = TSC.el("ol", { class: "mt-3 list-decimal space-y-2 pl-5" });
+          g.items.forEach(function (item) {
+            list.append(TSC.el("li", { class: "leading-8" }, [TSC.el("span", { class: "tts-p" }, [item])]));
+          });
+          nodes.push(list);
+        }
+        wrap.append(section(g.titleTh, nodes));
+      });
+      var related = (d.relatedIds || []).map(function (id) {
+        var other = (D().dhammas || []).find(function (x) { return x.id === id; });
+        return other ? TSC.el("li", {}, [link("#/dhamma/" + other.id, other.titleTh)]) : null;
+      }).filter(Boolean);
+      if (related.length) wrap.append(section("หมวดที่เกี่ยว", [TSC.el("ul", { class: "mt-3 space-y-1" }, related)]));
       var links = (d.unitIds || []).map(function (id) {
         var u = (D().units || []).find(function (x) { return x.id === id; });
-        return u ? TSC.el("li", {}, [link("#/vol/" + u.volume + "/" + u.sectionId + "/" + u.id, u.titleTh)]) : null;
+        return u ? TSC.el("li", {}, [link("#/vol/" + u.volume + "/" + u.sectionId + "/" + u.id, "เล่ม " + u.volume + " · " + u.titleTh)]) : null;
       }).filter(Boolean);
-      var body = paras(d.summaryTh);
-      body.push(links.length ? TSC.el("ul", { class: "mt-3 space-y-1" }, links) : TSC.p("mt-3", "ยังไม่มีสูตรในชุดข้อมูลนี้"));
-      return TSC.el("div", {}, [crumbs([["หมวดธรรม", "#/dhamma"], [d.titleTh]]), section(d.titleTh, body)]);
+      wrap.append(section("ตอนที่โหลดแล้ว", [
+        links.length ? TSC.el("ul", { class: "mt-3 space-y-1" }, links) : TSC.p("mt-3", "ยังไม่มีสูตรในชุดข้อมูลนี้")
+      ]));
+      return wrap;
     },
     map: function () {
       var wrap = TSC.el("div", {}, [
@@ -282,14 +371,26 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       ]);
     },
     plan: function () {
-      var wrap = TSC.el("div", {}, [crumbs([["ภาพรวม", "#/"], ["แผนการศึกษา"]]), TSC.h(1, "แผนการศึกษา")]);
+      var wrap = TSC.el("div", {}, [
+        crumbs([["ภาพรวม", "#/"], ["แผนการศึกษา"]]),
+        TSC.h(1, "แผนการศึกษา"),
+        TSC.p("mt-3 leading-8", "สามเส้นทางใช้ปุ่มอ่านแล้วปุ่มเดียวกัน เล่มที่ยังไม่มีบทจะไม่ถูกนับเป็นร้อยละ")
+      ]);
       (D().plans || []).forEach(function (plan) {
-        var list = TSC.el("ol", { class: "mt-3 space-y-1" });
-        plan.volumes.forEach(function (n) {
-          var vol = volume(n);
-          list.append(TSC.el("li", {}, [link("#/vol/" + n, "เล่ม " + n + " " + (vol ? vol.titleTh : ""))]));
+        var nodes = paras(plan.body);
+        var unitSteps = (plan.steps || []).filter(function (step) { return step.unitId; });
+        if (unitSteps.length) {
+          nodes.push(TSC.p("mt-3", "อ่านแล้ว " + TSC.progress.percent(unitSteps.map(function (step) { return step.unitId; })) + "% ของบทในเส้นนี้"));
+          var next = unitSteps.filter(function (step) { return !TSC.progress.has(step.unitId); })[0];
+          var nextUnit = next && (D().units || []).find(function (u) { return u.id === next.unitId; });
+          if (nextUnit) nodes.push(link("#/vol/" + nextUnit.volume + "/" + nextUnit.sectionId + "/" + nextUnit.id, "บทถัดไป · " + nextUnit.titleTh));
+        }
+        var list = TSC.el("ol", { class: "mt-3 space-y-3" });
+        (plan.steps || []).forEach(function (step) {
+          list.append(TSC.el("li", {}, [planStep(step)]));
         });
-        wrap.append(section(plan.title, [TSC.p("mt-3", plan.body), list]));
+        nodes.push(list);
+        wrap.append(section(plan.title, nodes));
       });
       var table = TSC.el("table", { class: "mt-3 w-full text-left text-sm" }, [
         TSC.el("tr", {}, [TSC.el("th", {}, ["อักษรย่อ"]), TSC.el("th", {}, ["เล่ม"]), TSC.el("th", {}, ["คัมภีร์"])])
@@ -327,7 +428,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       var scope = route.params[0] || "";
       var wrap = TSC.el("div", {}, [crumbs([["ภาพรวม", "#/"], ["แบบทดสอบ"]]), TSC.h(1, "แบบทดสอบ")]);
       if (!scope) {
-        ["vol-1", "vol-2", "vol-3", "vinaya"].forEach(function (id) {
+        ["vol-1", "vol-2", "vol-3", "vol-4", "vol-5", "vol-6", "vol-7", "vol-8", "vinaya"].forEach(function (id) {
           var label = id === "vinaya" ? "วินัยปิฎก" : "เล่ม " + id.slice(4);
           wrap.append(TSC.el("a", { href: "#/quiz/" + id, class: "glass-card mt-3 block p-4" }, [label]));
         });

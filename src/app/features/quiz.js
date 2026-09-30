@@ -17,7 +17,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     pool: function (scope) {
       var all = (TSC.DATA && TSC.DATA.quiz) || [];
       if (!scope || scope === "all") return all;
-      if (scope === "vinaya") return all.filter(function (q) { return q.scope === "vol-1" || q.scope === "vol-2" || q.scope === "vol-3"; });
+      if (scope === "vinaya") return all.filter(function (q) { return /^vol-[1-8]$/.test(q.scope); });
       return all.filter(function (q) { return q.scope === scope; });
     },
     draw: function (scope, rng) {

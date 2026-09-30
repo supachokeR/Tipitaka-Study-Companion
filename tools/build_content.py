@@ -208,6 +208,8 @@ def main():
         people_ids["buddha"].append({"unitId": u["id"], "textTh": u["titleTh"], "cite": TSC_cite(u["passages"][-1])})
 
     units.extend(load_bhikkhuni(max(u["order"] for u in units) + 1, people_ids, place_eps))
+    units.extend(load_mahavagga(max(u["order"] for u in units) + 1, people_ids, place_eps))
+    units.extend(load_parivara(max(u["order"] for u in units) + 1, people_ids, place_eps))
 
     if sum(1 for u in units if u["volume"] == 1) != 19:
         raise SystemExit("vol 1 count")
@@ -230,9 +232,10 @@ def main():
 
 def TSC_cite(p):
     c = p["cite"]
+    sigla = c.get("sigla") or "วิ.มหา."
     if c["page"] is None:
-        return c["scSegment"]
-    return f"วิ.มหา. เล่ม {c['volume']} หน้า {c['page']} · {c['scSegment']}"
+        return sigla + " · " + c["scSegment"]
+    return f"{sigla} เล่ม {c['volume']} หน้า {c['page']} · {c['scSegment']}"
 
 def build_as(order):
     path = next(TEXT.rglob("pli-tv-bu-vb-as1-7_root-pli-ms.json"))
@@ -453,6 +456,209 @@ def load_bhikkhuni_as(start_order, people_ids):
         people_ids.setdefault("buddha", []).append({"unitId": unit["id"], "textTh": title, "cite": TSC_cite(passages[-1])})
     return units
 
+def khandhaka_volume(kd):
+    if kd <= 4:
+        return 4
+    if kd <= 10:
+        return 5
+    if kd <= 14:
+        return 6
+    return 7
+
+def load_mahavagga(start_order, people_ids, place_eps):
+    from glosses_kd import STORIES as early
+    from glosses_cv import STORIES as later
+    STORIES = early + later
+    text_root = ROOT / "tools/raw/bilara/root/pli/ms/vinaya/pli-tv-kd"
+    ref_root = ROOT / "tools/raw/bilara/reference/pli/ms/vinaya/pli-tv-kd"
+    units = []
+    order = start_order
+    quiz = []
+    by_title = {}
+    for story in STORIES:
+        data = json.loads((text_root / f"pli-tv-kd{story['kd']}_root-pli-ms.json").read_text())
+        refs = json.loads((ref_root / f"pli-tv-kd{story['kd']}_reference.json").read_text())
+        items = list(data.items())
+        start = None
+        for i, (k, v) in enumerate(items):
+            if v.strip().startswith(story["match"]):
+                start = i
+                break
+        if start is None:
+            raise SystemExit("missing heading " + story["match"])
+        end = len(items)
+        for j in range(start + 1, len(items)):
+            t = items[j][1].strip()
+            if re.match(r"\d+\. ", t) and len(t) < 90 and not t.startswith(story["match"]):
+                end = j
+                break
+        picked = []
+        for k, v in items[start:end]:
+            raw = v.strip()
+            if not raw or not first_sya(refs.get(k, "")):
+                continue
+            if len(raw) > 420 and picked:
+                continue
+            picked.append((k, v))
+            if len(picked) >= 2:
+                break
+        if not picked:
+            for k, v in items[start:end]:
+                if first_sya(refs.get(k, "")):
+                    picked = [(k, v)]
+                    break
+        if not picked:
+            picked = [items[start]]
+        volume = khandhaka_volume(story["kd"])
+        sigla = "วิ.ม." if story["kd"] <= 10 else "วิ.จู."
+        passages = []
+        last = None
+        for seg_id, raw in picked:
+            hit = first_sya(refs.get(seg_id, ""))
+            page_from = "break" if hit else ("carry" if last else None)
+            if hit:
+                last = hit
+            cite_page = hit or last
+            if cite_page and cite_page[0] != volume:
+                raise SystemExit(f"{seg_id} sya {cite_page} != {volume}")
+            passages.append({
+                "id": seg_id,
+                "scSegment": seg_id,
+                "paliRoman": raw,
+                "sha256": sha(raw),
+                "cite": {
+                    "volume": cite_page[0] if cite_page else volume,
+                    "page": cite_page[1] if cite_page else None,
+                    "pageFrom": page_from,
+                    "sigla": sigla,
+                    "scSegment": seg_id,
+                    "item": None,
+                },
+                "paraphraseTh": "",
+                "terms": [],
+            })
+        uid = f"kd{story['kd']}-{len([u for u in units if u['scId'].endswith(str(story['kd']))]) + 1}"
+        # stable id from heading
+        slug = re.sub(r"[^a-z0-9]+", "-", story["match"].lower()).strip("-")
+        uid = f"kd{story['kd']}-{slug[:40]}"
+        unit = {
+            "id": uid,
+            "anchorId": "v0" + str(volume) + "-" + uid,
+            "volume": volume,
+            "sectionId": f"kd{story['kd']}",
+            "kind": "chapter",
+            "scId": f"pli-tv-kd{story['kd']}",
+            "number": story["kd"],
+            "order": order,
+            "titleTh": story["title"],
+            "titleRoman": story["match"],
+            "summary": story["summary"],
+            "verify": [],
+            "people": ["buddha"] + story["people"],
+            "places": [],
+            "dhammaIds": [],
+            "passages": passages,
+            "penalty": "มหาวรรค" if volume <= 5 else "จุลวรรค",
+        }
+        # places from text of the picked window
+        blob = " ".join(v for _, v in items[start:end][:40])
+        for needle, phrase, pid, *_rest in PLACES:
+            if needle in blob and pid not in unit["places"]:
+                unit["places"].append(pid)
+                place_eps.setdefault(pid, []).append({"unitId": uid, "textTh": story["title"]})
+        order += 1
+        units.append(unit)
+        by_title[story["title"]] = uid
+        for pid in unit["people"]:
+            people_ids.setdefault(pid, []).append({"unitId": uid, "textTh": story["title"], "cite": TSC_cite(passages[-1])})
+    return units
+
+def load_parivara(start_order, people_ids, place_eps):
+    from glosses_pvr import CHAPTERS
+    text_root = ROOT / "tools/raw/bilara/root/pli/ms/vinaya/pli-tv-pvr"
+    ref_root = ROOT / "tools/raw/bilara/reference/pli/ms/vinaya/pli-tv-pvr"
+    units = []
+    order = start_order
+    for index, story in enumerate(CHAPTERS, start=1):
+        data = json.loads((text_root / f"{story['file']}_root-pli-ms.json").read_text())
+        refs = json.loads((ref_root / f"{story['file']}_reference.json").read_text())
+        items = list(data.items())
+        start = None
+        for i, (k, v) in enumerate(items):
+            if v.strip().startswith(story["match"]):
+                start = i
+                break
+        if start is None:
+            raise SystemExit("missing parivara heading " + story["match"])
+        picked = []
+        for k, v in items[start:]:
+            raw = v.strip()
+            if not raw or not first_sya(refs.get(k, "")):
+                continue
+            if len(raw) > 420 and picked:
+                continue
+            picked.append((k, v))
+            if len(picked) >= 2:
+                break
+        if not picked:
+            for k, v in items[start:]:
+                if first_sya(refs.get(k, "")):
+                    picked = [(k, v)]
+                    break
+        if not picked:
+            picked = [items[start]]
+        passages = []
+        last = None
+        for seg_id, raw in picked:
+            hit = first_sya(refs.get(seg_id, ""))
+            page_from = "break" if hit else ("carry" if last else None)
+            if hit:
+                last = hit
+            cite_page = hit or last
+            if cite_page and cite_page[0] != 8:
+                raise SystemExit(f"{seg_id} sya {cite_page} != 8")
+            passages.append({
+                "id": seg_id,
+                "scSegment": seg_id,
+                "paliRoman": raw,
+                "sha256": sha(raw),
+                "cite": {
+                    "volume": cite_page[0] if cite_page else 8,
+                    "page": cite_page[1] if cite_page else None,
+                    "pageFrom": page_from,
+                    "sigla": "วิ.ป.",
+                    "scSegment": seg_id,
+                    "item": None,
+                },
+                "paraphraseTh": "",
+                "terms": [],
+            })
+        uid = "pvr-" + str(index)
+        unit = {
+            "id": uid,
+            "anchorId": "v08-" + uid,
+            "volume": 8,
+            "sectionId": "pvr",
+            "kind": "chapter",
+            "scId": story["file"],
+            "number": index,
+            "order": order,
+            "titleTh": story["title"],
+            "titleRoman": story["match"],
+            "summary": story["summary"],
+            "verify": [],
+            "people": ["buddha"] + story["people"],
+            "places": [],
+            "dhammaIds": [],
+            "passages": passages,
+            "penalty": "ปริวาร",
+        }
+        order += 1
+        units.append(unit)
+        for pid in unit["people"]:
+            people_ids.setdefault(pid, []).append({"unitId": uid, "textTh": story["title"], "cite": TSC_cite(passages[-1])})
+    return units
+
 def catalog(units, people_eps, place_eps):
     # The rest of the catalog is static study framing, not Pali.
     from frame import frame
@@ -475,12 +681,63 @@ def catalog(units, people_eps, place_eps):
         {"id": "bi-sekhiya", "volume": 3, "titleTh": "เสขิยะของภิกษุณี", "titleRoman": "Sekhiya", "order": 14},
         {"id": "bi-samatha", "volume": 3, "titleTh": "อธิกรณสมถะ", "titleRoman": "Adhikaraṇasamatha", "order": 15},
     ]
+    names = {
+        1: "มหาขันธกะ", 2: "อุโบสถขันธกะ", 3: "วัสสูปนายิกขันธกะ", 4: "ปวารณาขันธกะ",
+        5: "จัมมขันธกะ", 6: "เภสัชชขันธกะ", 7: "กฐินขันธกะ", 8: "จีวรขันธกะ",
+        9: "จัมเปยยขันธกะ", 10: "โกสัมพกขันธกะ",
+        11: "กรรมขันธกะ", 12: "ปาริวาสิกขันธกะ", 13: "สมุจจยขันธกะ", 14: "สมถขันธกะ",
+        15: "ขุททกวัตถุขันธกะ", 16: "เสนาสนขันธกะ", 17: "สังฆเภทกขันธกะ", 18: "วัตรขันธกะ",
+        19: "ปาติโมกขฐานขันธกะ", 20: "ภิกขุนีขันธกะ", 21: "ปัญจสติกขันธกะ", 22: "สัตตสติกขันธกะ",
+    }
+    for n, title in names.items():
+        base["sections"].append({
+            "id": f"kd{n}",
+            "volume": 4 if n <= 4 else 5 if n <= 10 else 6 if n <= 14 else 7,
+            "titleTh": title,
+            "titleRoman": f"Khandhaka {n}",
+            "order": 20 + n,
+        })
+    base["sections"].append({
+        "id": "pvr",
+        "volume": 8,
+        "titleTh": "ปริวาร",
+        "titleRoman": "Parivāra",
+        "order": 50,
+    })
     for person in base["people"]:
         person["episodes"] = people_eps.get(person["id"], [])
     for place in base["places"]:
         place["episodes"] = place_eps.get(place["id"], [])
+    by_dhamma = {row["id"]: row for row in base["dhammas"]}
+    title_links = {
+        "สัปดาห์แรกใต้ต้นโพธิ์": ["paticca"],
+        "พบปัญจวัคคีย์ที่ป่าอิสิปตนะ": ["sacca", "magga"],
+    }
+    for unit in units:
+        ids = title_links.get(unit["titleTh"])
+        if not ids:
+            continue
+        unit["dhammaIds"] = ids
+        for did in ids:
+            by_dhamma[did]["unitIds"].append(unit["id"])
     base["quiz"] = quizzes(units)
+    bind_plans(base["plans"], units)
     return base
+
+def bind_plans(plans, units):
+    by_title = {}
+    for unit in units:
+        by_title.setdefault(unit["titleTh"], unit)
+    for plan in plans:
+        for step in plan["steps"]:
+            title = step.get("titleTh")
+            if not title:
+                continue
+            unit = by_title.get(title)
+            if unit is None:
+                raise SystemExit("plan missing unit " + title)
+            step["unitId"] = unit["id"]
+            step["volume"] = unit["volume"]
 
 def quizzes(units):
     by_class = {}
@@ -515,11 +772,38 @@ def quizzes(units):
     for u in vol3_units[:40]:
         wrong = [p for p in penalties if p != u["penalty"]][:3]
         add(u, "สิกขาบท「" + u["titleTh"] + "」อยู่ในชั้นใดของภิกขุนีวิภังค์", u["penalty"], [u["penalty"]] + wrong, "ดูตัวบทของ " + u["scId"])
+    khandha = {
+        1: "มหาขันธกะ", 2: "อุโบสถขันธกะ", 3: "วัสสูปนายิกขันธกะ", 4: "ปวารณาขันธกะ",
+        5: "จัมมขันธกะ", 6: "เภสัชชขันธกะ", 7: "กฐินขันธกะ", 8: "จีวรขันธกะ",
+        9: "จัมเปยยขันธกะ", 10: "โกสัมพกขันธกะ",
+        11: "กรรมขันธกะ", 12: "ปาริวาสิกขันธกะ", 13: "สมุจจยขันธกะ", 14: "สมถขันธกะ",
+        15: "ขุททกวัตถุขันธกะ", 16: "เสนาสนขันธกะ", 17: "สังฆเภทกขันธกะ", 18: "วัตรขันธกะ",
+        19: "ปาติโมกขฐานขันธกะ", 20: "ภิกขุนีขันธกะ", 21: "ปัญจสติกขันธกะ", 22: "สัตตสติกขันธกะ",
+    }
+    for u in units:
+        if u["volume"] in (4, 5):
+            answer = khandha[u["number"]]
+            wrong = [name for name in list(khandha.values())[:10] if name != answer][:3]
+            add(u, "เรื่อง「" + u["titleTh"] + "」อยู่ในขันธกะใด", answer, [answer] + wrong, u["summary"].split("\n")[0])
+            add(u, "เรื่อง「" + u["titleTh"] + "」อยู่ในเล่มใดของมหาวรรค", "เล่ม " + str(u["volume"]), ["เล่ม 4", "เล่ม 5", "เล่ม 1", "เล่ม 8"], "มหาขันธกะถึงปวารณาอยู่ในเล่ม ๔ จัมมะถึงโกสัมพีอยู่ในเล่ม ๕")
+        elif u["volume"] in (6, 7):
+            answer = khandha[u["number"]]
+            wrong = [name for name in list(khandha.values())[10:] if name != answer][:3]
+            add(u, "เรื่อง「" + u["titleTh"] + "」อยู่ในขันธกะใด", answer, [answer] + wrong, u["summary"].split("\n")[0])
+            add(u, "เรื่อง「" + u["titleTh"] + "」อยู่ในเล่มใดของจุลวรรค", "เล่ม " + str(u["volume"]), ["เล่ม 6", "เล่ม 7", "เล่ม 4", "เล่ม 8"], "กรรมถึงสมถะอยู่ในเล่ม ๖ ขุททกวัตถุถึงสัตตสติกะอยู่ในเล่ม ๗")
+        elif u["volume"] == 8:
+            add(u, "บท「" + u["titleTh"] + "」อยู่ในคัมภีร์ใด", "ปริวาร", ["ปริวาร", "มหาวรรค", "จุลวรรค", "มหาวิภังค์"], u["summary"].split("\n")[0])
+            add(u, "บท「" + u["titleTh"] + "」อยู่ในเล่มใด", "เล่ม 8", ["เล่ม 8", "เล่ม 7", "เล่ม 3", "เล่ม 1"], "ปริวารคือวินัยเล่ม ๘")
     vol1 = [q for q in out if q["scope"] == "vol-1"]
     vol2 = [q for q in out if q["scope"] == "vol-2"]
     vol3 = [q for q in out if q["scope"] == "vol-3"]
-    if len(vol1) < 30 or len(vol2) < 40 or len(vol3) < 30:
-        raise SystemExit(f"quiz short {len(vol1)} {len(vol2)} {len(vol3)}")
+    vol4 = [q for q in out if q["scope"] == "vol-4"]
+    vol5 = [q for q in out if q["scope"] == "vol-5"]
+    vol6 = [q for q in out if q["scope"] == "vol-6"]
+    vol7 = [q for q in out if q["scope"] == "vol-7"]
+    vol8 = [q for q in out if q["scope"] == "vol-8"]
+    if len(vol1) < 30 or len(vol2) < 40 or len(vol3) < 30 or len(vol4) < 20 or len(vol5) < 20 or len(vol6) < 20 or len(vol7) < 20 or len(vol8) < 20:
+        raise SystemExit(f"quiz short {len(vol1)} {len(vol2)} {len(vol3)} {len(vol4)} {len(vol5)} {len(vol6)} {len(vol7)} {len(vol8)}")
     return out
 
 if __name__ == "__main__":

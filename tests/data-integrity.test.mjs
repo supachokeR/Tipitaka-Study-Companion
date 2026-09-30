@@ -36,6 +36,10 @@ test("โครงเล่ม ๑–๒ และ crosswalk", () => {
   assert.ok(data.quiz.filter((q) => q.scope === "vol-1").length >= 30);
   assert.ok(data.quiz.filter((q) => q.scope === "vol-2").length >= 40);
   assert.ok(data.quiz.filter((q) => q.scope === "vol-3").length >= 30);
+  for (const n of [6, 7, 8]) {
+    assert.ok(data.units.filter((u) => u.volume === n).length >= 10, "vol " + n);
+    assert.ok(data.quiz.filter((q) => q.scope === "vol-" + n).length >= 20, "quiz " + n);
+  }
   const vol3 = data.units.filter((u) => u.volume === 3);
   assert.ok(vol3.length >= 100);
   assert.ok(vol3.every((u) => String(u.scId).startsWith("pli-tv-bi-vb-")));
@@ -47,6 +51,9 @@ test("checksum บาลีตรงไฟล์ต้นฉบับ และ�
     assert.ok(unit.volume && unit.scId);
     for (const personId of unit.people) {
       assert.ok(data.people.some((p) => p.id === personId), personId);
+    }
+    for (const dhammaId of unit.dhammaIds || []) {
+      assert.ok(data.dhammas.some((d) => d.id === dhammaId), dhammaId);
     }
     for (const passage of unit.passages) {
       assert.equal(crypto.createHash("sha256").update(passage.paliRoman).digest("hex"), passage.sha256);
