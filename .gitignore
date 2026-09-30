@@ -1,0 +1,8 @@
+node_modules/
+tools/raw/
+.build/
+dist/screenshots/
+playwright-report/
+test-results/
+blob-report/
+.DS_Store

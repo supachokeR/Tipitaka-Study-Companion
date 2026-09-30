@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ศึกษาพระไตรปิฎกทีละเล่ม</title>
+  <style>/*CSS*/</style>
+</head>
+<body class="min-h-screen bg-[#FDF0E8] text-[#1F2937]">
+  <header class="sticky top-0 z-30 border-b border-white/60 bg-[#FDF0E8]/90 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-3 py-2">
+      <a href="#/" class="font-semibold text-[#C2410C]">พระไตรปิฎก</a>
+      <nav class="flex flex-wrap gap-2 text-sm" aria-label="มุมมองหลัก">
+        <a href="#/pitaka/vinaya">วินัย</a>
+        <a href="#/people">บุคคล</a>
+        <a href="#/dhamma">หมวดธรรม</a>
+        <a href="#/map">แผนที่</a>
+        <a href="#/glossary">ศัพท์</a>
+        <a href="#/plan">แผนศึกษา</a>
+        <a href="#/quiz">แบบทดสอบ</a>
+        <a href="#/progress">ความคืบหน้า</a>
+        <a href="#/about">เกี่ยวกับ</a>
+      </nav>
+      <form id="search-form" class="ml-auto flex gap-2" role="search">
+        <input id="q" aria-label="ค้นหา" class="rounded-xl border px-3 py-2" placeholder="ค้นไทย บาลี รหัส">
+        <button type="submit" class="tap rounded-xl bg-[#F97316] px-3 text-white">ค้น</button>
+      </form>
+      <button id="read-page" type="button" class="tap rounded-xl border border-[#F97316] px-3" aria-label="อ่านทั้งหน้า">อ่านทั้งหน้า</button>
+      <button id="notes-toggle" type="button" class="tap rounded-xl border px-3 lg:hidden" aria-label="เปิดโน้ต" onclick="document.body.classList.toggle('notes-open')">โน้ต</button>
+    </div>
+  </header>
+  <div id="storage-banner" class="bg-[#C2410C] px-3 py-2 text-center text-white" hidden></div>
+  <div id="shell" class="mx-auto max-w-6xl px-3 py-4">
+    <main id="reader"></main>
+    <aside id="notes" aria-label="โน้ต"></aside>
+  </div>
+  <nav id="mobile-tabs" class="border-t bg-[#FDF0E8]" aria-label="สลับอ่านและโน้ต">
+    <button type="button" data-pane="read" class="tap flex-1" aria-label="อ่าน">อ่าน</button>
+    <button type="button" data-pane="notes" class="tap flex-1" aria-label="โน้ต">โน้ต</button>
+  </nav>
+  <div id="tts-bar" class="glass-card flex flex-wrap items-center gap-2 p-2" hidden>
+    <button type="button" data-act="prev" class="tap rounded-xl border px-3" aria-label="ย่อหน้าก่อน">⏮</button>
+    <button type="button" data-act="toggle" id="tts-toggle" class="tap rounded-xl border px-3" aria-label="เล่น">เล่น</button>
+    <button type="button" data-act="stop" class="tap rounded-xl border px-3" aria-label="หยุด">⏹</button>
+    <button type="button" data-act="next" class="tap rounded-xl border px-3" aria-label="ย่อหน้าถัดไป">⏭</button>
+    <button type="button" data-rate="1" class="tap rounded-xl border px-3" aria-label="ความเร็ว 1 เท่า">×1</button>
+    <button type="button" data-rate="1.5" class="tap rounded-xl border px-3" aria-label="ความเร็ว 1.5 เท่า">×1.5</button>
+    <button type="button" data-rate="2" class="tap rounded-xl border px-3" aria-label="ความเร็ว 2 เท่า">×2</button>
+  </div>
+  <div id="modal-root"></div>
+  <footer class="px-3 py-6 text-center text-sm">supachoke acadamy</footer>
+  <script>/*JS*/</script>
+</body>
+</html>

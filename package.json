@@ -1,0 +1,20 @@
+{
+  "name": "tipitaka-study-companion",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "e2e": "playwright test",
+    "verify": "node scripts/build.mjs && node --test tests && playwright test"
+  },
+  "devDependencies": {
+    "@fontsource/sarabun": "^5.2.5",
+    "@playwright/test": "^1.55.0",
+    "@tailwindcss/cli": "^4.1.13",
+    "jsdom": "^26.1.0",
+    "tailwindcss": "^4.1.13"
+  }
+}
