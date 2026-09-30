@@ -60,6 +60,15 @@ test("อ่านทั้งหน้าแล้วไปบทถัดไ�
   assert.ok(speech.synth.spoken.length > 1);
 });
 
+test("อ่านทั้งหน้าไม่อ่านบาลีและเลขอ้างอิง", async () => {
+  const { window } = loadApp("#/vol/1/aniyata/ay1");
+  await tick();
+  const spoken = Array.from(window.document.querySelectorAll("#reader .tts-p")).map((n) => n.textContent).join("\n");
+  assert.equal(spoken.includes("อนิยโต"), false);
+  assert.equal(spoken.includes("pli-tv-bu-vb-ay1"), false);
+  assert.ok(window.document.getElementById("reader").textContent.includes("pli-tv-bu-vb-ay1"));
+});
+
 test("เปลี่ยนหน้าแล้ว cancel", async () => {
   const speech = makeSpeech();
   const { window } = loadApp("#/vol/1", { speech });

@@ -43,28 +43,24 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
 
   TSC.passageView = function (passage) {
     var thai = TSC.transliterate(passage.paliRoman.replace(/<[^>]+>/g, ""));
-    var box = TSC.el("div", { class: "mt-3 rounded-2xl bg-white/50 p-3" });
-    var roman = TSC.el("p", { class: "mt-2 hidden font-serif leading-7", lang: "pi-Latn" }, [passage.paliRoman.trim()]);
-    var thaiP = TSC.el("p", { class: "tts-p font-serif text-lg leading-8", lang: "pi" }, [thai]);
-    box.append(
-      TSC.el("div", { class: "flex flex-wrap items-center gap-2" }, [
-        TSC.el("span", { class: "rounded-full bg-[#F97316]/15 px-2 py-0.5 text-xs" }, ["ตัวบทบาลี"]),
-        TSC.el("button", {
-          type: "button",
-          class: "tap rounded-lg border border-[#F97316] px-3 text-sm",
-          "aria-label": "สลับบาลีอักษรไทยกับโรมัน",
-          onclick: function () {
-            thaiP.classList.toggle("hidden");
-            roman.classList.toggle("hidden");
-          }
-        }, ["สลับอักษรไทย / โรมัน"])
-      ]),
+    var line = TSC.el("div", { class: "mt-3" });
+    var roman = TSC.el("p", { class: "mt-1 hidden font-serif leading-7 text-sm", lang: "pi-Latn" }, [passage.paliRoman.trim()]);
+    var thaiP = TSC.el("p", { class: "font-serif text-lg leading-8", lang: "pi" }, [thai]);
+    line.append(
       thaiP,
       roman,
-      TSC.p("mt-2 text-sm text-[#C2410C]", TSC.formatCite(passage.cite))
+      TSC.el("button", {
+        type: "button",
+        class: "mt-1 text-sm text-[#C2410C]",
+        "aria-label": "สลับบาลีอักษรไทยกับโรมัน",
+        onclick: function () {
+          thaiP.classList.toggle("hidden");
+          roman.classList.toggle("hidden");
+        }
+      }, ["สลับอักษรไทย / โรมัน"]),
+      TSC.el("p", { class: "mt-1 text-sm text-[#C2410C]" }, [TSC.formatCite(passage.cite)])
     );
-    if (passage.paraphraseTh) box.append(TSC.el("p", { class: "tts-p mt-2" }, [passage.paraphraseTh]), TSC.el("span", { class: "text-xs text-[#C2410C]" }, ["ถอดความ"]));
-    return box;
+    return line;
   };
 
   TSC.notesPanel = {

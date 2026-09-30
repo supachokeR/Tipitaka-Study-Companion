@@ -119,10 +119,10 @@ def main():
                 if not place_phrase:
                     place_phrase = phrase
                 place_ids.append(pid)
-        origin = "เรื่องเกิดในภิกขุวิภังค์มาก่อนตัวบัญญัติ"
+        summary = gloss["summary"]
         if place_phrase:
             origin = "เรื่องเกิดเริ่มในคราวที่พระผู้มีพระภาคประทับ" + place_phrase
-        summary = gloss["summary"] + " " + origin + " จากนั้นพระผู้มีพระภาคให้สวดสิกขาบท ช่วงถัดไปของภิกขุวิภังค์วิเคราะห์คำและยกตัวอย่างคดี"
+            summary += " " + origin
         passages = []
         last_page = None
         if open_id:
@@ -145,7 +145,7 @@ def main():
                     "scSegment": open_id,
                     "item": None,
                 },
-                "paraphraseTh": origin + " ประโยคต้นเรื่องอยู่ในตัวบทบาลีบรรทัดนี้",
+                "paraphraseTh": "",
                 "terms": [],
             })
         for seg_id, raw in parts:
@@ -170,7 +170,7 @@ def main():
                     "scSegment": seg_id,
                     "item": None,
                 },
-                "paraphraseTh": gloss["summary"],
+                "paraphraseTh": "",
                 "terms": gloss.get("terms", []),
             })
         unit_people = ["buddha"] + gloss.get("people", [])
@@ -264,7 +264,7 @@ def build_as(order):
                 "paliRoman": raw,
                 "sha256": sha(raw),
                 "cite": {"volume": cite_page[0] if cite_page else None, "page": cite_page[1] if cite_page else None, "pageFrom": page_from, "sigla": "วิ.มหา.", "scSegment": seg_id, "item": None},
-                "paraphraseTh": summary,
+                "paraphraseTh": "",
                 "terms": [],
             })
         units.append({

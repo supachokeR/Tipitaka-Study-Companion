@@ -137,7 +137,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
           [unit.titleTh]
         ]),
         TSC.h(1, unit.titleTh),
-        TSC.p("text-sm", unit.scId + (unit.titleRoman ? " · " + unit.titleRoman : ""))
+        TSC.el("p", { class: "text-sm text-[#C2410C]" }, [unit.scId + (unit.titleRoman ? " · " + unit.titleRoman : "")])
       ]);
       var nav = TSC.el("div", { class: "mt-3 flex gap-2" });
       if (list[at - 1]) nav.append(link("#/vol/" + volN + "/" + list[at - 1].sectionId + "/" + list[at - 1].id, "ก่อนหน้า"));
@@ -156,9 +156,12 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       (unit.verify || []).forEach(function (v) { summaryBits.push(TSC.p("mt-2", "⚠️ " + v)); });
       wrap.append(section("สรุป", summaryBits));
       var passageNodes = (unit.passages || []).map(TSC.passageView);
+      var seenTerms = {};
       (unit.passages || []).forEach(function (p) {
         (p.terms || []).forEach(function (term) {
-          passageNodes.push(TSC.p("mt-2 text-sm", TSC.transliterate(term.roman) + " (" + term.roman + ") " + term.glossTh));
+          if (seenTerms[term.roman]) return;
+          seenTerms[term.roman] = true;
+          passageNodes.push(TSC.el("p", { class: "mt-2 text-sm" }, [TSC.transliterate(term.roman) + " (" + term.roman + ") " + term.glossTh]));
         });
       });
       wrap.append(section("บาลี–ไทยเทียบ", passageNodes));
