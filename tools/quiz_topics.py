@@ -73,6 +73,27 @@ def topic_quizzes(base, units):
                     spread(foreign, n * 13 + gi * 5 + k, 3, own),
                     "ข้อนี้อยู่ในหมวด" + d["titleTh"] + " หัวข้อ" + g["titleTh"], href, first_unit)
 
+    topics = base.get("vinayaTopics", [])
+    vcats = sorted({x["categoryTh"] for x in topics})
+    v_items = {x["id"]: [short(i) for g in x["groups"] for i in (g.get("items") or [])] for x in topics}
+    for n, x in enumerate(topics):
+        href = "#/vinaya/" + x["id"]
+        first_unit = x["unitIds"][0]
+        add("vinaya-topics", "หัวข้อ「" + x["titleTh"] + "」อยู่ในกลุ่มใดของหมวดวินัย", x["categoryTh"],
+            spread([c for c in vcats if c != x["categoryTh"]] + ["ขันธ์ อายตนะ และลักษณะของสิ่งทั้งปวง"], n, 3, set()),
+            "หน้าหมวดวินัยจัด" + x["titleTh"] + "ไว้ในกลุ่ม" + x["categoryTh"], href, first_unit)
+        foreign = [i for o in topics if o["categoryTh"] != x["categoryTh"] for i in v_items[o["id"]]]
+        own = set(v_items[x["id"]])
+        for gi, g in enumerate(x["groups"]):
+            items = g.get("items") or []
+            if len(items) < 3:
+                continue
+            for k in range(min(3, len(items))):
+                answer = short(items[(k * 3 + gi) % len(items)])
+                add("vinaya-topics", "ข้อใดอยู่ใน「" + x["titleTh"] + " · " + g["titleTh"] + "」", answer,
+                    spread(foreign, n * 17 + gi * 5 + k, 3, own),
+                    "ข้อนี้อยู่ในหัวข้อ" + x["titleTh"] + " ส่วน" + g["titleTh"], href, first_unit)
+
     people = base["people"]
     by_role = {}
     for p in people:

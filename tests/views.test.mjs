@@ -23,6 +23,12 @@ const routes = [
   ["#/people/angulimala", "เราหยุดแล้ว"],
   ["#/people/khema", "เอตทัคคะ"],
   ["#/people/mara", "ปาวาลเจดีย์"],
+  ["#/vinaya", "อาบัติเจ็ดกอง"],
+  ["#/vinaya/garudhamma", "ร้อยพรรษา"],
+  ["#/vinaya/sangiti", "วัตถุสิบ"],
+  ["#/pitaka/vinaya", "หมวดวินัย"],
+  ["#/vol/2/pacittiya/pc51", "พระสาคตะ"],
+  ["#/people/thullananda", "พหูสูต"],
   ["#/map", "ชมพูทวีป"],
   ["#/map", "ปรินิพพานที่กุสินารา"],
   ["#/place/kusinara", "สาละคู่"],
@@ -50,6 +56,20 @@ test("ทุก view หลักแสดงหัวเรื่อง", async
     assert.ok(reader.includes(text), hash + " missing " + text);
   }
   assert.equal(window.document.querySelector("footer").textContent, "supachoke acadamy");
+});
+
+test("สลับโหมดมืดและจำค่าไว้", async () => {
+  const { window } = loadApp("#/");
+  await tick();
+  const root = window.document.documentElement;
+  const btn = window.document.getElementById("theme-toggle");
+  assert.equal(root.dataset.theme, "light");
+  btn.click();
+  assert.equal(root.dataset.theme, "dark");
+  assert.equal(btn.getAttribute("aria-pressed"), "true");
+  assert.equal(window.localStorage.getItem("tsc:v1:theme"), JSON.stringify("dark"));
+  btn.click();
+  assert.equal(root.dataset.theme, "light");
 });
 
 test("ก่อนหน้าถัดไปและค้นรหัสสิกขาบท", async () => {

@@ -45,6 +45,10 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       (data.crosswalk || []).forEach(function (c) {
         push(rows, "รหัส", c.scUid + " " + c.scId, c.sigla + " เล่ม " + c.volume + " " + (c.titleTh || ""), "#/vol/" + c.volume);
       });
+      (data.vinayaTopics || []).forEach(function (d) {
+        var blob = d.summaryTh + " " + (d.groups || []).map(function (g) { return g.titleTh + " " + (g.body || "") + " " + (g.items || []).join(" "); }).join(" ");
+        push(rows, "หมวดวินัย", d.titleTh, blob, "#/vinaya/" + d.id);
+      });
       (data.dhammas || []).forEach(function (d) {
         push(rows, "หมวดธรรม", d.titleTh, d.summaryTh, "#/dhamma/" + d.id);
       });

@@ -225,6 +225,8 @@ def main():
     from link_suttas import link_people
     from people_sutta import EPISODES
     link_people(units, people_ids, EPISODES)
+    from vinaya_cast import cast_vinaya
+    cast_vinaya(units, people_ids, TSC_cite)
     data = catalog(units, people_ids, place_eps)
     out = ROOT / "src/data/generated/data.js"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -753,6 +755,13 @@ def catalog(units, people_eps, place_eps):
     from dhammas import LINKS
     from link_suttas import link_dhammas
     link_dhammas(units, by_dhamma, LINKS)
+    from vinaya_topics import topics as vinaya_topics
+    unit_ids = {u["id"] for u in units}
+    base["vinayaTopics"] = vinaya_topics()
+    for row in base["vinayaTopics"]:
+        missing = [uid for uid in row["unitIds"] if uid not in unit_ids]
+        if missing:
+            raise SystemExit("vinaya topic " + row["id"] + " missing " + ", ".join(missing))
     from quiz_topics import topic_quizzes
     base["quiz"] = quizzes(units) + topic_quizzes(base, units)
     bind_plans(base["plans"], units)

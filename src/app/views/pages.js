@@ -51,6 +51,53 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     });
   }
 
+  function topicIndex(rows, base, trail, title, intro) {
+    var wrap = TSC.el("div", {}, [crumbs(trail), TSC.h(1, title), TSC.p("mt-3 leading-8", intro)]);
+    var order = [];
+    var byCat = {};
+    rows.forEach(function (d) {
+      var cat = d.categoryTh || title;
+      if (!byCat[cat]) { byCat[cat] = []; order.push(cat); }
+      byCat[cat].push(d);
+    });
+    order.forEach(function (cat) {
+      wrap.append(section(cat, byCat[cat].map(function (d) {
+        return TSC.el("a", { href: base + d.id, class: "glass-card mt-3 block p-4" }, [
+          TSC.el("div", { class: "font-semibold" }, [d.titleTh]),
+          TSC.p("mt-1 text-sm leading-7", String(d.summaryTh || "").split("\n")[0])
+        ]);
+      })));
+    });
+    return wrap;
+  }
+
+  function topicPage(d, trail, related, base) {
+    var wrap = TSC.el("div", {}, [crumbs(trail), TSC.h(1, d.titleTh)]);
+    wrap.append(section("เรื่อง", paras(d.summaryTh)));
+    (d.groups || []).forEach(function (g) {
+      var nodes = g.body ? paras(g.body) : [];
+      if (g.items && g.items.length) {
+        nodes.push(TSC.el("ol", { class: "mt-3 list-decimal space-y-2 pl-5" }, g.items.map(function (item) {
+          return TSC.el("li", { class: "leading-8" }, [TSC.el("span", { class: "tts-p" }, [item])]);
+        })));
+      }
+      wrap.append(section(g.titleTh, nodes));
+    });
+    var rel = (d.relatedIds || []).map(function (id) {
+      var other = related.find(function (x) { return x.id === id; });
+      return other ? TSC.el("li", {}, [link(base + other.id, other.titleTh)]) : null;
+    }).filter(Boolean);
+    if (rel.length) wrap.append(section("หมวดที่เกี่ยว", [TSC.el("ul", { class: "mt-3 space-y-1" }, rel)]));
+    var links = (d.unitIds || []).map(function (id) {
+      var u = (D().units || []).find(function (x) { return x.id === id; });
+      return u ? TSC.el("li", {}, [link("#/vol/" + u.volume + "/" + u.sectionId + "/" + u.id, "เล่ม " + u.volume + " · " + u.titleTh)]) : null;
+    }).filter(Boolean);
+    wrap.append(section("บทที่สอนหมวดนี้", [
+      links.length ? TSC.el("ul", { class: "mt-3 space-y-1" }, links) : TSC.p("mt-3", "ยังไม่มีบทในชุดข้อมูลนี้")
+    ]));
+    return wrap;
+  }
+
   function planStep(step) {
     var row = TSC.el("div", {});
     if (step.dhammaId) {
@@ -108,6 +155,12 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       var p = (D().pitakas || []).find(function (x) { return x.id === route.params[0]; });
       if (!p) return TSC.views.missing();
       var wrap = TSC.el("div", {}, [crumbs([["ภาพรวม", "#/"], [p.nameTh]]), TSC.h(1, p.nameTh)]);
+      if (p.id === "vinaya") {
+        wrap.append(TSC.el("a", { href: "#/vinaya", class: "glass-card mt-3 block p-4" }, [
+          TSC.el("h2", { class: "font-semibold" }, ["หมวดวินัย"]),
+          TSC.el("span", { class: "text-sm" }, [(D().vinayaTopics || []).length + " หัวข้อ เช่น ปาราชิก อาบัติเจ็ดกอง สังฆกรรม กฐิน และครุธรรม"])
+        ]));
+      }
       p.volumes.forEach(function (n) {
         var vol = volume(n);
         wrap.append(TSC.el("a", { href: "#/vol/" + n, class: "glass-card mt-3 block p-4" }, [
@@ -266,62 +319,24 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       return wrap;
     },
     dhamma: function () {
-      var wrap = TSC.el("div", {}, [
-        crumbs([["ภาพรวม", "#/"], ["หมวดธรรม"]]),
-        TSC.h(1, "หมวดธรรม"),
-        TSC.p("mt-3 leading-8", "หมวดธรรมในหน้านี้มาจากตัวบทพระสูตร วินัย และอภิธรรม แต่ละหมวดเขียนรายการครบตามสูตรต้นเรื่อง และลิงก์ไปบทที่สอนหมวดนั้นพร้อมบาลีอ้างอิง")
-      ]);
-      var order = [];
-      var byCat = {};
-      (D().dhammas || []).forEach(function (d) {
-        var cat = d.categoryTh || "หมวดธรรม";
-        if (!byCat[cat]) { byCat[cat] = []; order.push(cat); }
-        byCat[cat].push(d);
-      });
-      order.forEach(function (cat) {
-        var cards = byCat[cat].map(function (d) {
-          var lead = String(d.summaryTh || "").split("\n")[0];
-          return TSC.el("a", { href: "#/dhamma/" + d.id, class: "glass-card mt-3 block p-4" }, [
-            TSC.el("div", { class: "font-semibold" }, [d.titleTh]),
-            TSC.p("mt-1 text-sm leading-7", lead)
-          ]);
-        });
-        wrap.append(section(cat, cards));
-      });
-      return wrap;
+      return topicIndex(D().dhammas || [], "#/dhamma/", [["ภาพรวม", "#/"], ["หมวดธรรม"]], "หมวดธรรม",
+        "หมวดธรรมในหน้านี้มาจากตัวบทพระสูตร วินัย และอภิธรรม แต่ละหมวดเขียนรายการครบตามสูตรต้นเรื่อง และลิงก์ไปบทที่สอนหมวดนั้นพร้อมบาลีอ้างอิง");
     },
     dhammaOne: function (route) {
       var d = (D().dhammas || []).find(function (x) { return x.id === route.params[0]; });
       if (!d) return TSC.views.missing();
-      var wrap = TSC.el("div", {}, [
-        crumbs([["หมวดธรรม", "#/dhamma"], [d.titleTh]]),
-        TSC.h(1, d.titleTh)
-      ]);
-      wrap.append(section("เรื่อง", paras(d.summaryTh)));
-      (d.groups || []).forEach(function (g) {
-        var nodes = g.body ? paras(g.body) : [];
-        if (g.items && g.items.length) {
-          var list = TSC.el("ol", { class: "mt-3 list-decimal space-y-2 pl-5" });
-          g.items.forEach(function (item) {
-            list.append(TSC.el("li", { class: "leading-8" }, [TSC.el("span", { class: "tts-p" }, [item])]));
-          });
-          nodes.push(list);
-        }
-        wrap.append(section(g.titleTh, nodes));
-      });
-      var related = (d.relatedIds || []).map(function (id) {
-        var other = (D().dhammas || []).find(function (x) { return x.id === id; });
-        return other ? TSC.el("li", {}, [link("#/dhamma/" + other.id, other.titleTh)]) : null;
-      }).filter(Boolean);
-      if (related.length) wrap.append(section("หมวดที่เกี่ยว", [TSC.el("ul", { class: "mt-3 space-y-1" }, related)]));
-      var links = (d.unitIds || []).map(function (id) {
-        var u = (D().units || []).find(function (x) { return x.id === id; });
-        return u ? TSC.el("li", {}, [link("#/vol/" + u.volume + "/" + u.sectionId + "/" + u.id, "เล่ม " + u.volume + " · " + u.titleTh)]) : null;
-      }).filter(Boolean);
-      wrap.append(section("บทที่สอนหมวดนี้", [
-        links.length ? TSC.el("ul", { class: "mt-3 space-y-1" }, links) : TSC.p("mt-3", "ยังไม่มีสูตรในชุดข้อมูลนี้")
-      ]));
+      return topicPage(d, [["หมวดธรรม", "#/dhamma"], [d.titleTh]], D().dhammas || [], "#/dhamma/");
+    },
+    vinaya: function () {
+      var wrap = topicIndex(D().vinayaTopics || [], "#/vinaya/", [["ภาพรวม", "#/"], ["หมวดวินัย"]], "หมวดวินัย",
+        "หัวข้อในหน้านี้รวบรวมหลักวินัยจากภิกขุวิภังค์ ภิกขุนีวิภังค์ ขันธกะ และปริวาร แต่ละหัวข้อลิงก์ไปบทในเล่ม ๑ ถึง ๘ ที่ตัวบทกล่าวเรื่องนั้น");
+      wrap.append(section("อ่านตามเล่ม", [link("#/pitaka/vinaya", "วินัยปิฎกเล่ม ๑ ถึง ๘")]));
       return wrap;
+    },
+    vinayaOne: function (route) {
+      var d = (D().vinayaTopics || []).find(function (x) { return x.id === route.params[0]; });
+      if (!d) return TSC.views.missing();
+      return topicPage(d, [["หมวดวินัย", "#/vinaya"], [d.titleTh]], D().vinayaTopics || [], "#/vinaya/");
     },
     map: function () {
       var wrap = TSC.el("div", {}, [
@@ -504,7 +519,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
       if (!scope) {
         var ids = [];
         for (var n = 1; n <= 45; n++) ids.push("vol-" + n);
-        var topics = [["dhamma", "หมวดธรรม"], ["people", "บุคคลและเอตทัคคะ"], ["places", "สถานที่และพุทธประวัติ"], ["glossary", "ศัพท์บาลี"], ["vinaya", "วินัยปิฎก"]];
+        var topics = [["vinaya-topics", "หมวดวินัย"], ["dhamma", "หมวดธรรม"], ["people", "บุคคลและเอตทัคคะ"], ["places", "สถานที่และพุทธประวัติ"], ["glossary", "ศัพท์บาลี"], ["vinaya", "วินัยปิฎก"]];
         wrap.append(section("ตามหัวข้อ", topics.map(function (t) {
           var n = TSC.quiz.pool(t[0]).length;
           return TSC.el("a", { href: "#/quiz/" + t[0], class: "glass-card mt-3 block p-4" }, [t[1] + " · " + n + " ข้อ"]);

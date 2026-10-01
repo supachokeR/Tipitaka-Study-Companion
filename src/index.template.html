@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ศึกษาพระไตรปิฎกทีละเล่ม</title>
   <style>/*CSS*/</style>
+  <script>
+    (function () {
+      var t = null;
+      try { t = JSON.parse(localStorage.getItem("tsc:v1:theme")); } catch (e) {}
+      if (t !== "dark" && t !== "light") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
 </head>
 <body class="min-h-screen bg-[#FDF0E8] text-[#1F2937]">
   <header class="sticky top-0 z-30 border-b border-white/60 bg-[#FDF0E8]/90 backdrop-blur">
@@ -12,6 +20,7 @@
       <a href="#/" class="font-semibold text-[#C2410C]">พระไตรปิฎก</a>
       <nav class="flex flex-wrap gap-2 text-sm" aria-label="มุมมองหลัก">
         <a href="#/pitaka/vinaya">วินัย</a>
+        <a href="#/vinaya">หมวดวินัย</a>
         <a href="#/people">บุคคล</a>
         <a href="#/dhamma">หมวดธรรม</a>
         <a href="#/map">แผนที่</a>
@@ -26,6 +35,7 @@
         <button type="submit" class="tap rounded-xl bg-[#F97316] px-3 text-white">ค้น</button>
       </form>
       <button id="read-page" type="button" class="tap rounded-xl border border-[#F97316] px-3" aria-label="อ่านทั้งหน้า">อ่านทั้งหน้า</button>
+      <button id="theme-toggle" type="button" class="tap rounded-xl border px-3" aria-pressed="false" aria-label="โหมดมืด">โหมดมืด</button>
       <button id="notes-toggle" type="button" class="tap rounded-xl border px-3 lg:hidden" aria-label="เปิดโน้ต" onclick="document.body.classList.toggle('notes-open')">โน้ต</button>
     </div>
   </header>

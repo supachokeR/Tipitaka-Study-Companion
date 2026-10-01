@@ -64,10 +64,12 @@ const html = fs.readFileSync(path.join(root, "src/index.template.html"), "utf8")
 fs.writeFileSync(path.join(root, "tipitaka-study.html"), html);
 fs.mkdirSync(path.join(root, "dist"), { recursive: true });
 fs.writeFileSync(path.join(root, "dist/index.html"), html);
-const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
-const scriptPath = path.join(root, ".build/app.js");
-fs.writeFileSync(scriptPath, script);
-execSync(`node --check ${JSON.stringify(scriptPath)}`, { stdio: "inherit" });
+const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+scripts.forEach((script, i) => {
+  const scriptPath = path.join(root, `.build/app-${i}.js`);
+  fs.writeFileSync(scriptPath, script);
+  execSync(`node --check ${JSON.stringify(scriptPath)}`, { stdio: "inherit" });
+});
 const size = fs.statSync(path.join(root, "tipitaka-study.html")).size;
 if (size > 16 * 1024 * 1024) {
   console.error("ไฟล์ใหญ่เกิน 3 MB:", size);

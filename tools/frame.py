@@ -162,6 +162,8 @@ def home():
 def people():
     from people_data import people as rows
     from people_sutta import EXTRA, NEW, ROLE
+    from vinaya_cast import NEW as VINAYA_NEW
+    NEW = NEW + VINAYA_NEW
     base = rows()
     ids = {row["id"] for row in base}
     for row in base:

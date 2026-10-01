@@ -78,6 +78,26 @@ test("checksum บาลีตรงไฟล์ต้นฉบับ และ�
   }
 });
 
+test("หมวดวินัยและผู้เกี่ยวข้องในเรื่องเกิด", () => {
+  const unitIds = new Set(data.units.map((u) => u.id));
+  assert.ok(data.vinayaTopics.length >= 18);
+  for (const t of data.vinayaTopics) {
+    assert.ok(t.categoryTh && t.summaryTh && t.groups.length, t.id);
+    for (const id of t.unitIds) {
+      assert.ok(unitIds.has(id), t.id + " " + id);
+      assert.ok(data.units.find((u) => u.id === id).volume <= 8, t.id + " " + id);
+    }
+  }
+  const counts = data.vinayaTopics.find((t) => t.id === "sikkhapada").groups;
+  const sum = (g) => g.items.reduce((a, s) => a + Number(s.split(" ").pop().replace(/[๐-๙]/g, (d) => "๐๑๒๓๔๕๖๗๘๙".indexOf(d))), 0);
+  assert.equal(sum(counts[0]), 227);
+  assert.equal(sum(counts[1]), 311);
+  const cast = data.units.filter((u) => u.volume <= 3 && u.summary.includes("ผู้เกี่ยวข้องในเรื่องเกิดตามตัวบท"));
+  assert.ok(cast.length >= 200);
+  const peopleIds = new Set(data.people.map((p) => p.id));
+  for (const u of cast) for (const id of u.people) assert.ok(peopleIds.has(id), u.id + " " + id);
+});
+
 test("สถานที่ ศัพท์ และเรื่องย่อมัชฌิมนิกาย", () => {
   const unitIds = new Set(data.units.map((u) => u.id));
   const placeIds = new Set(data.places.map((p) => p.id));

@@ -144,6 +144,23 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     document.getElementById("read-page").addEventListener("click", function () {
       TSC.tts.readPage();
     });
+    var themeBtn = document.getElementById("theme-toggle");
+    function paintTheme() {
+      var dark = document.documentElement.dataset.theme === "dark";
+      themeBtn.textContent = dark ? "โหมดสว่าง" : "โหมดมืด";
+      themeBtn.setAttribute("aria-label", dark ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด");
+      themeBtn.setAttribute("aria-pressed", dark ? "true" : "false");
+    }
+    if (themeBtn) {
+      if (!document.documentElement.dataset.theme) document.documentElement.dataset.theme = TSC.store.get("theme", "light");
+      paintTheme();
+      themeBtn.addEventListener("click", function () {
+        var next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        TSC.store.set("theme", next);
+        paintTheme();
+      });
+    }
     document.querySelectorAll("[data-pane]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         document.body.dataset.pane = btn.getAttribute("data-pane");
