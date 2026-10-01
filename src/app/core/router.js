@@ -11,6 +11,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     [/^\/dhamma$/, "dhamma"],
     [/^\/dhamma\/([a-z0-9-]+)$/, "dhammaOne"],
     [/^\/map$/, "map"],
+    [/^\/place\/([a-z0-9-]+)$/, "place"],
     [/^\/glossary$/, "glossary"],
     [/^\/glossary\/([a-z0-9-]+)$/, "term"],
     [/^\/plan$/, "plan"],

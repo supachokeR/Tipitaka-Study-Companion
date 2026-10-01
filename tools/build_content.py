@@ -211,13 +211,20 @@ def main():
     units.extend(load_mahavagga(max(u["order"] for u in units) + 1, people_ids, place_eps))
     units.extend(load_parivara(max(u["order"] for u in units) + 1, people_ids, place_eps))
     from load_corpus import load_corpus
-    units.extend(load_corpus(max(u["order"] for u in units) + 1, sha))
+    corpus = load_corpus(max(u["order"] for u in units) + 1, sha)
+    for u in corpus:
+        for pid in u["places"]:
+            place_eps.setdefault(pid, []).append({"unitId": u["id"], "textTh": u["titleTh"]})
+    units.extend(corpus)
 
     if sum(1 for u in units if u["volume"] == 1) != 19:
         raise SystemExit("vol 1 count")
     if sum(1 for u in units if u["volume"] == 2) != 208:
         raise SystemExit("vol 2 count")
 
+    from link_suttas import link_people
+    from people_sutta import EPISODES
+    link_people(units, people_ids, EPISODES)
     data = catalog(units, people_ids, place_eps)
     out = ROOT / "src/data/generated/data.js"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -724,7 +731,7 @@ def catalog(units, people_eps, place_eps):
             f"เล่ม {n} {title} มี {len(vols)} บทในแอปนี้ "
             "แต่ละบทยกบาลีสั้น ๆ พร้อมเลขหน้าจากไฟล์อ้างอิง sya "
             "คำอธิบายภาษาไทยบอกที่ประทับและหัวข้อในต้นฉบับ "
-            "ทีฆนิกายทั้งสามสิบสี่สูตรเขียนเป็นเรื่องให้เห็นเหตุการณ์"
+            "ทีฆนิกายสามสิบสี่สูตรและมัชฌิมนิกายหนึ่งร้อยห้าสิบสองสูตรเขียนเป็นเรื่องให้เห็นเหตุการณ์"
         )
         vol["furtherStudy"] = "อ่านทีละบทตามลำดับในเล่ม บาลีที่ใช้เป็นที่อ้างอิงไม่ถูกอ่านออกเสียง เล่มที่อยู่ก่อนหน้าในปิฎกเดียวกันช่วยให้เห็นว่าบทนี้ต่อจากชุดใด"
     for person in base["people"]:
@@ -743,7 +750,11 @@ def catalog(units, people_eps, place_eps):
         unit["dhammaIds"] = ids
         for did in ids:
             by_dhamma[did]["unitIds"].append(unit["id"])
-    base["quiz"] = quizzes(units)
+    from dhammas import LINKS
+    from link_suttas import link_dhammas
+    link_dhammas(units, by_dhamma, LINKS)
+    from quiz_topics import topic_quizzes
+    base["quiz"] = quizzes(units) + topic_quizzes(base, units)
     bind_plans(base["plans"], units)
     return base
 
@@ -836,9 +847,11 @@ def quizzes(units):
                             break
                     add(u, "บท「" + u["titleTh"] + "」อยู่ในเล่มใด", "เล่ม " + str(vol), choices, u["summary"].split("\n")[0][:180])
                 elif round_no == 1:
-                    add(u, "บท「" + u["titleTh"] + "」อยู่ในปิฎกใด", u["penalty"], [u["penalty"], "วินัย", "สุตตันต", "อภิธรรม"][:4] if u["penalty"] != "วินัย" else ["วินัย", "สุตตันต", "อภิธรรม", "ปริวาร"], "ดูเล่มของบทนี้")
+                    pitaka = [u["penalty"]] + [x for x in ("วินัย", "สุตตันต", "อภิธรรม", "ปริวาร") if x != u["penalty"]]
+                    add(u, "บท「" + u["titleTh"] + "」อยู่ในปิฎกใด", u["penalty"], pitaka[:4], "สุตตันตปิฎกคือเล่ม ๙ ถึง ๓๓ อภิธรรมปิฎกคือเล่ม ๓๔ ถึง ๔๕")
                 else:
-                    add(u, "อักษรย่อของบท「" + u["titleTh"] + "」คือข้อใด", sigla, [sigla, "วิ.มหา.", "ม.มู.", "อภิ.ป."], "อักษรย่ออยู่ที่บรรทัดอ้างอิงของบท")
+                    others = [x for x in ("วิ.มหา.", "ม.มู.", "อภิ.ป.", "ที.สี.", "สํ.ส.") if x != sigla]
+                    add(u, "อักษรย่อของบท「" + u["titleTh"] + "」คือข้อใด", sigla, [sigla] + others[:3], "อักษรย่ออยู่ที่บรรทัดอ้างอิงของบท")
                 made += 1
             round_no += 1
     vol1 = [q for q in out if q["scope"] == "vol-1"]

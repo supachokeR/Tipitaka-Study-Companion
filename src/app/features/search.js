@@ -37,7 +37,7 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
         push(rows, "บุคคล", p.names.th, p.names.roman + " " + (p.blurb || ""), "#/people/" + p.id);
       });
       (data.places || []).forEach(function (p) {
-        push(rows, "สถานที่", p.names.th, p.names.roman + " " + (p.blurbTh || ""), "#/map");
+        push(rows, "สถานที่", p.names.th, p.names.roman + " " + (p.blurbTh || ""), "#/place/" + p.id);
       });
       (data.glossary || []).forEach(function (g) {
         push(rows, "ศัพท์", g.roman, g.glossTh, "#/glossary/" + g.id);

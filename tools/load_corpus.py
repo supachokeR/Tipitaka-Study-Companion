@@ -1,7 +1,7 @@
 """Study units for every sutta and abhidhamma file in the pinned bilara snapshot.
 
 Pali segments are copied. Thai notes describe the setting and the headings in the file.
-The thirty-four Digha suttas use the scene notes in dn_stories.py.
+The Digha and Majjhima suttas use the scene notes in dn_stories.py and mn_stories.py.
 """
 import json
 import re
@@ -15,20 +15,35 @@ REF = ROOT / "tools/raw/bilara/reference/pli/ms"
 SKIP_BOOKS = {"mil", "ne", "pe"}
 FALLBACK_VOLUME = {"an5": 22, "an6": 22, "an7": 23, "an9": 23}
 PLACES = [
-    ("sāvatthiyaṁ", "สาวัตถี"),
-    ("jetavane", "เชตวัน"),
-    ("rājagahe", "ราชคฤห์"),
-    ("veḷuvane", "เวฬุวัน"),
-    ("vesāliyaṁ", "เวสาลี"),
-    ("kosambiyaṁ", "โกสัมพี"),
-    ("kapilavatthusmiṁ", "กบิลพัสดุ์"),
-    ("bārāṇasiyaṁ", "พาราณสี"),
-    ("nāḷandāyaṁ", "นาลันทา"),
-    ("campāyaṁ", "จัมปา"),
-    ("sākete", "สาเกต"),
-    ("kusinārāyaṁ", "กุสินารา"),
-    ("pāvāyaṁ", "ปาวา"),
-    ("rājagahe", "ราชคฤห์"),
+    ("sāvatthiyaṁ", "savatthi"),
+    ("jetavane", "jetavana"),
+    ("pubbārāme", "pubbarama"),
+    ("sākete", "saketa"),
+    ("rājagahe", "rajagaha"),
+    ("veḷuvane", "veluvana"),
+    ("gijjhakūṭe", "gijjhakuta"),
+    ("nāḷandāyaṁ", "nalanda"),
+    ("pāṭaligām", "pataligama"),
+    ("uruvelāyaṁ", "uruvela"),
+    ("gayāsīse", "gaya"),
+    ("vesāliyaṁ", "vesali"),
+    ("mahāvane", "mahavana"),
+    ("beluvagāmake", "beluva"),
+    ("kosambiyaṁ", "kosambi"),
+    ("kapilavatthusmiṁ", "kapilavatthu"),
+    ("nigrodhārāme", "nigrodharama"),
+    ("lumbineyye", "lumbini"),
+    ("bārāṇasiyaṁ", "baranasi"),
+    ("isipatane", "isipatana"),
+    ("campāyaṁ", "campa"),
+    ("kusinār", "kusinara"),
+    ("pāvāyaṁ", "pava"),
+    ("madhurāyaṁ", "madhura"),
+    ("avantīsu", "avanti"),
+    ("kammāsadhamm", "kammasadhamma"),
+    ("bhesakaḷāvane", "bhagga"),
+    ("āḷaviyaṁ", "alavi"),
+    ("verañjāyaṁ", "veranja"),
 ]
 SIGLA_BY_VOLUME = {
     9: "ที.สี.", 10: "ที.ม.", 11: "ที.ปา.",
@@ -100,6 +115,8 @@ def book_of(path):
 
 def sigla_for(path, volume):
     book = book_of(path)
+    if book == "an":
+        book = path.parent.name
     if book in AN_SIGLA:
         return AN_SIGLA[book]
     if book in KN_SIGLA:
@@ -152,6 +169,9 @@ process.stdout.write(JSON.stringify(out));
 
 def load_corpus(start_order, sha):
     from dn_stories import DN
+    from mn_stories import MN
+    from frame import places as frame_places
+    place_th = {p["id"]: p["names"]["th"] for p in frame_places()}
     files = sorted(TEXT.rglob("*_root-pli-ms.json"), key=natural_key)
     files = [path for path in files if "sutta" in path.parts or "abhidhamma" in path.parts]
     files = [path for path in files if wanted(path)]
@@ -185,11 +205,11 @@ def load_corpus(start_order, sha):
                 headings.append(text)
             if len(headings) >= 6:
                 break
-        blob = " ".join(value for _key, value in items[:30])
+        blob = " ".join(value for _key, value in items[:30]).lower()
         places = []
-        for needle, label in PLACES:
-            if needle in blob and label not in places:
-                places.append(label)
+        for needle, pid in PLACES:
+            if needle in blob and pid not in places:
+                places.append(pid)
         picked = []
         volume = None
         for key, value in items:
@@ -251,12 +271,15 @@ def load_corpus(start_order, sha):
         heads = [thai[index] for index in row["head_i"]]
         stem = row["path"].name.replace("_root-pli-ms.json", "")
         dn_number = int(stem[2:]) if stem.startswith("dn") and stem[2:].isdigit() else None
+        mn_number = int(stem[2:]) if stem.startswith("mn") and stem[2:].isdigit() else None
         if dn_number in DN:
             summary = DN[dn_number]
+        elif mn_number in MN:
+            summary = MN[mn_number]
         else:
             where = ""
             if row["places"]:
-                where = "พระผู้มีพระภาคประทับที่" + " และ".join(row["places"][:2]) + ". "
+                where = "ต้นเรื่องกล่าวถึง" + " และ".join(place_th[pid] for pid in row["places"][:2]) + ". "
             outline = ""
             if heads:
                 outline = "หัวข้อในข้อความนี้ขึ้นต้นว่า " + " ".join(heads[:6]) + ". "
@@ -298,14 +321,14 @@ def load_corpus(start_order, sha):
             "sectionId": f"corpus-{row['volume']}",
             "kind": "sutta" if "sutta" in row["path"].parts else "chapter",
             "scId": stem,
-            "number": dn_number or row["volume"],
+            "number": dn_number or mn_number or row["volume"],
             "order": order,
             "titleTh": title_th,
             "titleRoman": strings[row["title_i"]],
             "summary": summary,
             "verify": [],
             "people": [],
-            "places": [],
+            "places": list(row["places"]),
             "dhammaIds": [],
             "passages": passages,
             "penalty": "สุตตันต" if row["volume"] <= 33 else "อภิธรรม",
