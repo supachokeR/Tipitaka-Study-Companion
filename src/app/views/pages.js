@@ -587,11 +587,16 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
     notes: function () {
       var list = TSC.el("div", { class: "mt-4 space-y-3" });
       TSC.notes.all().forEach(function (n) {
-        list.append(TSC.el("article", { class: "glass-card p-4" }, [
-          TSC.el("h2", { class: "font-semibold" }, [n.title]),
+        var card = TSC.el("article", { class: "glass-card p-4" });
+        card.append(
+          TSC.el("div", { class: "flex items-center justify-between gap-2" }, [
+            TSC.el("h2", { class: "font-semibold tts-p" }, [n.title]),
+            readButton("โน้ต " + n.title, function () { return card; })
+          ]),
           TSC.p("mt-2", n.body),
-          TSC.p("text-sm", (n.tags || []).join(", "))
-        ]));
+          TSC.el("p", { class: "text-sm" }, [(n.tags || []).join(", ")])
+        );
+        list.append(card);
       });
       var tools = TSC.el("div", { class: "mt-3 flex flex-wrap gap-2" }, [
         TSC.el("button", { type: "button", class: "tap rounded-xl bg-[#F97316] px-3 text-white", onclick: function () { TSC.io.download(true); } }, ["ส่งออก JSON"]),

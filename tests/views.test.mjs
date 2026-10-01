@@ -82,8 +82,8 @@ test("ก่อนหน้าถัดไปและค้นรหัสส�
   assert.ok(window.document.getElementById("reader").textContent.includes("ปาราชิก"));
 });
 
-test("โน้ตสร้าง ลบ และนำเข้า", async () => {
-  const { window } = loadApp("#/vol/1/parajika/pj1");
+test("โน้ตสร้าง อ่าน ลบ และนำเข้า", async () => {
+  const { window, speech } = loadApp("#/vol/1/parajika/pj1");
   window.confirm = () => true;
   await tick();
   const form = window.document.querySelector("#notes form");
@@ -92,6 +92,16 @@ test("โน้ตสร้าง ลบ และนำเข้า", async () 
   form.querySelector("[name=tags]").value = "วินัย";
   form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
   assert.ok(window.document.getElementById("notes").textContent.includes("คำถามทดสอบ"));
+  window.document.querySelector("#notes button[aria-label='อ่านโน้ต คำถามทดสอบ']").click();
+  await tick();
+  for (let i = 0; i < 5 && speech.synth.spoken.length; i++) {
+    const last = speech.synth.spoken[speech.synth.spoken.length - 1];
+    if (last.onend) last.onend();
+    await tick();
+  }
+  const spoken = speech.synth.spoken.map((u) => u.text).join(" ");
+  assert.ok(spoken.includes("คำถามทดสอบ") && spoken.includes("จดไว้"), spoken);
+  assert.ok(window.document.querySelector("#notes button[aria-label=อ่านโน้ตทั้งหมด]"));
   window.TSC.io.importPayload({
     app: "tipitaka-study-companion",
     schemaVersion: 1,

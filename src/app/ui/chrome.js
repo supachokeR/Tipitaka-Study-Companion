@@ -104,14 +104,28 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
             value: q,
             oninput: function (ev) { q = ev.target.value; draw(); }
           }),
-          TSC.el("div", { class: "mt-3 space-y-3" }, list.map(function (n) {
-            return TSC.el("article", { class: "rounded-xl bg-white/60 p-3" }, [
-              TSC.el("h3", { class: "font-semibold" }, [n.title]),
+          list.length ? TSC.el("button", {
+            type: "button",
+            class: "tap mt-3 rounded-xl border border-[#F97316] px-3 text-sm",
+            "aria-label": "อ่านโน้ตทั้งหมด",
+            onclick: function () { TSC.tts.readSelector(aside.querySelector("[data-note-list]")); }
+          }, ["อ่านโน้ตทั้งหมด"]) : null,
+          TSC.el("div", { class: "mt-3 space-y-3", "data-note-list": "" }, list.map(function (n) {
+            var card = TSC.el("article", { class: "rounded-xl bg-white/60 p-3" }, [
+              TSC.el("h3", { class: "font-semibold tts-p" }, [n.title]),
               TSC.p("text-sm", n.body),
-              tagList(n),
+              tagList(n)
+            ]);
+            card.append(TSC.el("div", { class: "mt-2 flex gap-3" }, [
               TSC.el("button", {
                 type: "button",
-                class: "tap mt-2 text-sm text-[#C2410C]",
+                class: "tap text-sm text-[#C2410C]",
+                "aria-label": "อ่านโน้ต " + n.title,
+                onclick: function () { TSC.tts.readSelector(card); }
+              }, ["อ่าน"]),
+              TSC.el("button", {
+                type: "button",
+                class: "tap text-sm text-[#C2410C]",
                 "aria-label": "ลบโน้ต",
                 onclick: function () {
                   if (window.confirm("ลบโน้ตนี้หรือไม่")) {
@@ -120,7 +134,8 @@ var TSC = globalThis.TSC || (globalThis.TSC = {});
                   }
                 }
               }, ["ลบ"])
-            ]);
+            ]));
+            return card;
           })),
           TSC.el("a", { href: "#/notes", class: "mt-3 inline-block text-sm text-[#C2410C]" }, ["ดูโน้ตทั้งหมด"])
         ]));
